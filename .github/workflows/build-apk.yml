@@ -21,9 +21,12 @@ jobs:
           java-version: '17'
 
       - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar pacotes Android
         run: |
-          yes | sdkmanager --licenses >/dev/null
-          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          yes | sdkmanager --licenses || true
 
       - name: Preparar Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -31,7 +34,68 @@ jobs:
           gradle-version: '8.14.3'
 
       - name: Gerar APK debug
-        run: gradle :app:assembleDebug
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Enviar APK para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: SWLauncher-v0.1-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+EOFsed -i 's/compileSdk 36/compileSdk 35/g' app/build.gradle
+sed -i 's/targetSdk 36/targetSdk 35/g' app/build.gradle
+
+git add .
+git commit -m "Corrige build do APK no GitHub Actions"
+git push
+
+
+
+
+
+
+
+cd /sdcard/Download/SWLauncher_v0_1_mobile
+
+mkdir -p .github/workflows
+
+cat > .github/workflows/build-apk.yml <<'EOF'
+name: Build SW Launcher APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar pacotes Android
+        run: |
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          yes | sdkmanager --licenses || true
+
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Gerar APK debug
+        run: gradle :app:assembleDebug --stacktrace
 
       - name: Enviar APK para download
         uses: actions/upload-artifact@v4
