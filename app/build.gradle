@@ -1,0 +1,16 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.sw.launcher'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.sw.launcher'
+        minSdk 23
+        targetSdk 36
+        versionCode 1
+        versionName '0.1'
+    }
+}
