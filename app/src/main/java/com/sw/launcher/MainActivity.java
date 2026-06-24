@@ -937,7 +937,7 @@ public class MainActivity extends Activity {
         addTurboChoice(row, dialog, "Battery");
         box.addView(row);
 
-        addPanelRow(box, "☾ Não perturbe", "Abrir configurações de notificações", new View.OnClickListener() { @Override public void onClick(View v) { dialog.dismiss(); safeStart(new Intent(Settings.ACTION_NOTIFICATION_SETTINGS)); }});
+        addPanelRow(box, "☾ Não perturbe", "Abrir configurações de notificações", new View.OnClickListener() { @Override public void onClick(View v) { dialog.dismiss(); safeStart(new Intent("android.settings.NOTIFICATION_SETTINGS")); }});
         addPanelRow(box, "☀ Brilho e tela", "Display, taxa e economia", new View.OnClickListener() { @Override public void onClick(View v) { dialog.dismiss(); safeStart(new Intent(Settings.ACTION_DISPLAY_SETTINGS)); }});
         addPanelRow(box, "▣ Apps recentes", "Voltar para aba Recentes", new View.OnClickListener() { @Override public void onClick(View v) { dialog.dismiss(); setMode(MODE_RECENT); }});
         addPanelRow(box, "Cache rápido", "Atalhos de limpeza", new View.OnClickListener() { @Override public void onClick(View v) { dialog.dismiss(); openCacheOptions(); }});
