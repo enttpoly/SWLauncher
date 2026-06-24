@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     name: Build Debug APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Baixar projeto
@@ -20,74 +20,25 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Preparar Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Instalar pacotes Android
+      - name: Preparar Android SDK manualmente
         run: |
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
-          yes | sdkmanager --licenses || true
+          export ANDROID_HOME=$HOME/android-sdk
+          export ANDROID_SDK_ROOT=$ANDROID_HOME
+          mkdir -p $ANDROID_HOME/cmdline-tools
 
-      - name: Preparar Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.14.3'
+          curl -L -o /tmp/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q /tmp/cmdline-tools.zip -d /tmp/android-cmdline-tools
 
-      - name: Gerar APK debug
-        run: gradle :app:assembleDebug --stacktrace
+          mkdir -p $ANDROID_HOME/cmdline-tools/latest
+          mv /tmp/android-cmdline-tools/cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/
 
-      - name: Enviar APK para download
-        uses: actions/upload-artifact@v4
-        with:
-          name: SWLauncher-v0.1-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-EOFsed -i 's/compileSdk 36/compileSdk 35/g' app/build.gradle
-sed -i 's/targetSdk 36/targetSdk 35/g' app/build.gradle
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
 
-git add .
-git commit -m "Corrige build do APK no GitHub Actions"
-git push
-
-
-
-
-
-
-
-cd /sdcard/Download/SWLauncher_v0_1_mobile
-
-mkdir -p .github/workflows
-
-cat > .github/workflows/build-apk.yml <<'EOF'
-name: Build SW Launcher APK
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [ "main" ]
-
-jobs:
-  build:
-    name: Build Debug APK
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Baixar projeto
-        uses: actions/checkout@v4
-
-      - name: Preparar Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Preparar Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Instalar pacotes Android
-        run: |
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
-          yes | sdkmanager --licenses || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
       - name: Preparar Gradle
         uses: gradle/actions/setup-gradle@v4
