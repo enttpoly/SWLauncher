@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace 'com.sw.launcher'
-    compileSdk 35
+    compileSdk 37
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -14,8 +14,8 @@ android {
     defaultConfig {
         applicationId 'com.sw.launcher'
         minSdk 23
-        targetSdk 35
+        targetSdk 37
         versionCode 2
-        versionName '0.2'
+        versionName '0.4'
     }
 }
