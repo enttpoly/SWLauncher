@@ -335,12 +335,7 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(Intent.ACTION_MAIN, null);
         intent.addCategory(Intent.CATEGORY_LAUNCHER);
 
-        List<ResolveInfo> resolved;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            resolved = pm.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0));
-        } else {
-            resolved = pm.queryIntentActivities(intent, 0);
-        }
+        List<ResolveInfo> resolved = pm.queryIntentActivities(intent, 0);
 
         allApps.clear();
         Set<String> seen = new HashSet<>();
@@ -590,7 +585,7 @@ public class MainActivity extends Activity {
 
     private void requestClearAllCache() {
         try {
-            Intent intent = new Intent(Intent.ACTION_CLEAR_APP_CACHE);
+            Intent intent = new Intent("android.intent.action.CLEAR_APP_CACHE");
             startActivity(intent);
         } catch (Exception e) {
             Toast.makeText(this, "Abrindo armazenamento do Android", Toast.LENGTH_SHORT).show();
