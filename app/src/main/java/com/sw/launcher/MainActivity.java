@@ -701,6 +701,12 @@ public class MainActivity extends Activity {
     private EditText editSearch(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setHintTextColor(muted); e.setTextColor(text); e.setTextSize(17); e.setSingleLine(true); e.setPadding(dp(24), 0, dp(24), 0); e.setBackground(round(surface, dp(26), outline)); return e; }
     private TextView iconButton(int res) { TextView b = label("", 20, text, true); b.setGravity(Gravity.CENTER); b.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0); b.setCompoundDrawableTintList(ColorStateList.valueOf(text)); b.setBackground(round(surface, dp(26), outline)); LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(58), dp(58)); b.setLayoutParams(p); press(b); return b; }
 
+    private LinearLayout card(int radius) {
+        LinearLayout l = col();
+        l.setBackground(round(surface, radius, outline));
+        return l;
+    }
+
     private LinearLayout row() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.HORIZONTAL); l.setGravity(Gravity.CENTER_VERTICAL); return l; }
     private LinearLayout col() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); return l; }
     private Space spaceW(int w) { Space s = new Space(this); s.setLayoutParams(new LinearLayout.LayoutParams(dp(w), 1)); return s; }
