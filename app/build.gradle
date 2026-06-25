@@ -1,21 +1,19 @@
-plugins {
-    id 'com.android.application'
-}
+plugins { id 'com.android.application' }
 
 android {
     namespace 'com.sw.launcher'
     compileSdk 35
 
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-
     defaultConfig {
         applicationId 'com.sw.launcher'
         minSdk 23
         targetSdk 35
-        versionCode 2
-        versionName '0.4'
+        versionCode 8
+        versionName '0.8'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
