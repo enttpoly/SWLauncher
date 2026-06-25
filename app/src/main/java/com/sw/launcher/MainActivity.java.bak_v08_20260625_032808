@@ -74,14 +74,6 @@ public class MainActivity extends Activity {
     private String dockStyle;
     private String animationMode;
     private String wallpaperTone;
-    private String iconShape;
-    private String azMode;
-    private String workspaceMood;
-    private int labelSize;
-    private int gridGap;
-    private int dockSlots;
-    private boolean workspaceLock;
-    private float gestureDownX, gestureDownY;
 
     static class AppInfo {
         String id;
@@ -108,9 +100,9 @@ public class MainActivity extends Activity {
 
     private void migrateAuroraDefaults() {
         int applied = prefs.getInt("aurora_migration", 0);
-        if (applied >= 11) return;
+        if (applied >= 10) return;
         SharedPreferences.Editor e = prefs.edit();
-        e.putInt("aurora_migration", 11);
+        e.putInt("aurora_migration", 10);
         e.putString("style", "aurora");
         e.putString("home_style", "focus");
         e.putString("dock_style", "glass");
@@ -118,13 +110,6 @@ public class MainActivity extends Activity {
         e.putString("animation_mode", "smooth");
         if (!prefs.contains("icon_size")) e.putInt("icon_size", 54);
         if (!prefs.contains("columns")) e.putInt("columns", 4);
-        if (!prefs.contains("icon_shape")) e.putString("icon_shape", "expressive");
-        if (!prefs.contains("az_mode")) e.putString("az_mode", "minimal");
-        if (!prefs.contains("workspace_mood")) e.putString("workspace_mood", "aurora");
-        if (!prefs.contains("label_size")) e.putInt("label_size", 12);
-        if (!prefs.contains("grid_gap")) e.putInt("grid_gap", 10);
-        if (!prefs.contains("dock_slots")) e.putInt("dock_slots", 5);
-        if (!prefs.contains("workspace_lock")) e.putBoolean("workspace_lock", false);
         e.apply();
     }
 
@@ -152,13 +137,6 @@ public class MainActivity extends Activity {
         dockStyle = prefs.getString("dock_style", "floating");
         animationMode = prefs.getString("animation_mode", "smooth");
         wallpaperTone = prefs.getString("wallpaper_tone", "manual");
-        iconShape = prefs.getString("icon_shape", "expressive");
-        azMode = prefs.getString("az_mode", "minimal");
-        workspaceMood = prefs.getString("workspace_mood", "aurora");
-        labelSize = prefs.getInt("label_size", 12);
-        gridGap = prefs.getInt("grid_gap", 10);
-        dockSlots = prefs.getInt("dock_slots", 5);
-        workspaceLock = prefs.getBoolean("workspace_lock", false);
         homeIds = parseSet(prefs.getString("home_ids", ""));
         dockIds = parseSet(prefs.getString("dock_ids", ""));
         hiddenIds = parseSet(prefs.getString("hidden_ids", ""));
@@ -176,13 +154,6 @@ public class MainActivity extends Activity {
                 .putString("dock_style", dockStyle)
                 .putString("animation_mode", animationMode)
                 .putString("wallpaper_tone", wallpaperTone)
-                .putString("icon_shape", iconShape)
-                .putString("az_mode", azMode)
-                .putString("workspace_mood", workspaceMood)
-                .putInt("label_size", labelSize)
-                .putInt("grid_gap", gridGap)
-                .putInt("dock_slots", dockSlots)
-                .putBoolean("workspace_lock", workspaceLock)
                 .putString("home_ids", joinSet(homeIds))
                 .putString("dock_ids", joinSet(dockIds))
                 .putString("hidden_ids", joinSet(hiddenIds))
@@ -266,9 +237,8 @@ public class MainActivity extends Activity {
         setupSystemBars();
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(densityMode.equals("compact") ? 18 : 22), dp(densityMode.equals("compact") ? 12 : 16), dp(densityMode.equals("compact") ? 18 : 22), dp(8));
+        root.setPadding(dp(densityMode.equals("compact") ? 18 : 22), dp(densityMode.equals("compact") ? 14 : 18), dp(densityMode.equals("compact") ? 18 : 22), dp(10));
         root.setBackground(auroraBackground());
-        attachWorkspaceGestures(root);
         setContentView(root);
     }
 
@@ -314,15 +284,12 @@ public class MainActivity extends Activity {
         search.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { buildDrawer(); } });
         content.addView(spaceH(16)); content.addView(search, lp(-1, dp(densityMode.equals("compact") ? 56 : 64)));
 
-        HorizontalScrollView toolsScroll = new HorizontalScrollView(this);
-        toolsScroll.setHorizontalScrollBarEnabled(false);
-        LinearLayout tools = row(); tools.setPadding(0, dp(12), 0, dp(2));
-        addToolChip(tools, R.drawable.ic_apps, "Gaveta", new View.OnClickListener() { public void onClick(View v) { buildDrawer(); } });
-        addToolChip(tools, R.drawable.ic_palette, "Visual", new View.OnClickListener() { public void onClick(View v) { showStyleSheet(); } });
-        addToolChip(tools, R.drawable.ic_plus, "Editar", new View.OnClickListener() { public void onClick(View v) { showEditHomeSheet(); } });
-        addToolChip(tools, R.drawable.ic_settings, "Ajustes", new View.OnClickListener() { public void onClick(View v) { buildSettings(); } });
-        toolsScroll.addView(tools);
-        content.addView(toolsScroll);
+        GridLayout quick = new GridLayout(this); quick.setColumnCount(2); quick.setPadding(0, dp(14), 0, 0);
+        addQuick(quick, R.drawable.ic_apps, "Gaveta", allApps.size() + " apps", new View.OnClickListener() { public void onClick(View v) { buildDrawer(); } });
+        addQuick(quick, R.drawable.ic_palette, "Aparência", "cores e layout", new View.OnClickListener() { public void onClick(View v) { showStyleSheet(); } });
+        addQuick(quick, R.drawable.ic_plus, "Editar", "área de trabalho", new View.OnClickListener() { public void onClick(View v) { showEditHomeSheet(); } });
+        addQuick(quick, R.drawable.ic_settings, "Ajustes", "launcher", new View.OnClickListener() { public void onClick(View v) { buildSettings(); } });
+        content.addView(quick);
 
         LinearLayout areaHeader = row();
         areaHeader.setPadding(0, dp(18), 0, dp(8));
@@ -352,26 +319,17 @@ public class MainActivity extends Activity {
         LinearLayout dock = new LinearLayout(this);
         dock.setOrientation(LinearLayout.HORIZONTAL);
         dock.setGravity(Gravity.CENTER);
-        dock.setPadding(dp(dockStyle.equals("compact") ? 8 : 12), dp(dockStyle.equals("compact") ? 5 : 8), dp(dockStyle.equals("compact") ? 8 : 12), dp(dockStyle.equals("compact") ? 5 : 8));
-        int dockSurface = dockStyle.equals("solid") ? glassSurfaceStrong() : glassSurface();
-        dock.setBackground(round(dockSurface, dp(dockStyle.equals("compact") ? 26 : 32), glassOutline()));
-
+        dock.setPadding(dp(dockStyle.equals("compact") ? 10 : 14), dp(dockStyle.equals("compact") ? 6 : 8), dp(dockStyle.equals("compact") ? 10 : 14), dp(dockStyle.equals("compact") ? 6 : 8));
+        int dockSurface = dockStyle.equals("solid") ? surface2 : surface;
+        dock.setBackground(round(dockSurface, dp(dockStyle.equals("compact") ? 28 : 34), outline));
         ArrayList<AppInfo> apps = new ArrayList<>();
         for (String id : dockIds) { AppInfo a = findApp(id); if (a != null) apps.add(a); }
-        int left = Math.min(2, apps.size());
-        for (int i = 0; i < left; i++) dock.addView(dockIcon(apps.get(i)), new LinearLayout.LayoutParams(0, dp(60), 1));
-
-        TextView center = iconButton(R.drawable.ic_apps);
-        center.setTextSize(22);
-        center.setBackground(round(accent, dp(30), Color.TRANSPARENT));
-        center.setTextColor(onAccent);
-        center.setCompoundDrawableTintList(ColorStateList.valueOf(onAccent));
-        center.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { buildDrawer(); } });
-        dock.addView(center, new LinearLayout.LayoutParams(dp(64), dp(60)));
-
-        for (int i = 2; i < Math.min(apps.size(), 4); i++) dock.addView(dockIcon(apps.get(i)), new LinearLayout.LayoutParams(0, dp(60), 1));
-        while (dock.getChildCount() < 5) dock.addView(new Space(this), new LinearLayout.LayoutParams(0, dp(60), 1));
-        root.addView(dock, new LinearLayout.LayoutParams(-1, dp(densityMode.equals("compact") ? 70 : 78)));
+        int max = Math.min(apps.size(), 4);
+        for (int i = 0; i < max; i++) dock.addView(dockIcon(apps.get(i)), new LinearLayout.LayoutParams(0, dp(64), 1));
+        TextView center = iconButton(R.drawable.ic_search); center.setTextSize(24); center.setBackground(round(accent, dp(34), accent)); center.setTextColor(onAccent); center.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { buildDrawer(); } });
+        dock.addView(center, new LinearLayout.LayoutParams(dp(72), dp(64)));
+        while (dock.getChildCount() < 6) dock.addView(new Space(this), new LinearLayout.LayoutParams(0, dp(64), 1));
+        root.addView(dock, new LinearLayout.LayoutParams(-1, dp(densityMode.equals("compact") ? 74 : 82)));
     }
 
     private View dockIcon(final AppInfo app) {
@@ -408,10 +366,10 @@ public class MainActivity extends Activity {
         FrameLayout body = new FrameLayout(this);
         drawerScroll = new ScrollView(this);
         drawerGrid = new GridLayout(this); drawerGrid.setColumnCount(columns);
-        drawerGrid.setPadding(0, dp(4), dp(azMode.equals("hidden") ? 0 : 24), dp(90));
+        drawerGrid.setPadding(0, dp(4), dp(compactAz ? 28 : 42), dp(90));
         drawerScroll.addView(drawerGrid);
         body.addView(drawerScroll, new FrameLayout.LayoutParams(-1, -1));
-        if (!azMode.equals("hidden")) body.addView(alphabetBar(), rightBarParams(dp(azMode.equals("minimal") ? 18 : 28)));
+        if (compactAz) body.addView(alphabetBar(), rightBarParams(dp(compactAz ? 22 : 34))); else body.addView(alphabetBar(), rightBarParams(dp(34)));
         root.addView(body, new LinearLayout.LayoutParams(-1, 0, 1));
         populateDrawer();
         fadeIn(root);
@@ -450,15 +408,14 @@ public class MainActivity extends Activity {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.VERTICAL);
         bar.setGravity(Gravity.CENTER);
-        bar.setPadding(0, dp(8), 0, dp(8));
-        bar.setAlpha(azMode.equals("minimal") ? 0.58f : 0.82f);
-        bar.setBackground(round(Color.argb(90, Color.red(surface), Color.green(surface), Color.blue(surface)), dp(16), Color.argb(70, Color.red(outline), Color.green(outline), Color.blue(outline))));
+        bar.setPadding(0, dp(6), 0, dp(6));
+        bar.setBackground(round(Color.argb(120, Color.red(surface), Color.green(surface), Color.blue(surface)), dp(18), outline));
         String letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         for (int i = 0; i < letters.length(); i++) {
             final char c = letters.charAt(i);
-            TextView l = label(String.valueOf(c), azMode.equals("minimal") ? 7 : 10, muted, true);
+            TextView l = label(String.valueOf(c), compactAz ? 7 : 10, muted, true);
             l.setGravity(Gravity.CENTER);
-            l.setAlpha(azMode.equals("minimal") ? 0.62f : 0.78f);
+            l.setAlpha(0.72f);
             l.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { jumpToLetter(c); } });
             bar.addView(l, new LinearLayout.LayoutParams(-1, 0, 1));
         }
@@ -480,36 +437,30 @@ public class MainActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER);
-        box.setPadding(dp(3), dp(6), dp(3), dp(6));
-        int screenW = getResources().getDisplayMetrics().widthPixels - dp(36);
-        int cellW = Math.max(dp(68), screenW / Math.max(1, columns) - dp(Math.max(2, gridGap)));
+        box.setPadding(dp(4), dp(8), dp(4), dp(8));
+        int cellW = Math.max(dp(76), getResources().getDisplayMetrics().widthPixels / Math.max(1, columns) - dp(16));
         GridLayout.LayoutParams gp = new GridLayout.LayoutParams();
         gp.width = cellW;
-        gp.height = dp(showNames ? iconSize + (densityMode.equals("compact") ? 40 : 50) : iconSize + 20);
-        gp.setMargins(0, 0, 0, dp(Math.max(4, gridGap)));
+        gp.height = dp(showNames ? iconSize + (densityMode.equals("compact") ? 46 : 58) : iconSize + 28);
+        gp.setMargins(0, 0, 0, dp(10));
         box.setLayoutParams(gp);
 
         FrameLayout plate = new FrameLayout(this);
-        plate.setBackground(round(iconPlate(), iconRadius(), Color.TRANSPARENT));
-        if (Build.VERSION.SDK_INT >= 21) plate.setElevation(dp(1));
+        plate.setBackground(round(iconPlate(), dp(22), Color.TRANSPARENT));
         ImageView iv = new ImageView(this);
         iv.setImageDrawable(app.icon);
         iv.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        int realIcon = Math.max(34, iconSize - 4);
-        plate.addView(iv, centered(dp(realIcon), dp(realIcon)));
-        int plateSize = iconSize + (iconShape.equals("minimal") ? 6 : 12);
-        box.addView(plate, new LinearLayout.LayoutParams(dp(plateSize), dp(plateSize)));
+        plate.addView(iv, centered(dp(iconSize), dp(iconSize)));
+        box.addView(plate, new LinearLayout.LayoutParams(dp(iconSize + 14), dp(iconSize + 14)));
         if (showNames) {
-            TextView name = label(app.label, labelSize, text, false);
+            TextView name = label(app.label, 12, text, false);
             name.setGravity(Gravity.CENTER);
             name.setMaxLines(2);
-            name.setAlpha(0.92f);
             box.addView(name, new LinearLayout.LayoutParams(-1, -2));
         }
         box.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { launch(app); } });
         box.setOnLongClickListener(new View.OnLongClickListener() { public boolean onLongClick(View v) { showAppSheet(app); return true; } });
         press(box);
-        if (!animationMode.equals("off")) { box.setScaleX(0.98f); box.setScaleY(0.98f); box.animate().scaleX(1f).scaleY(1f).setDuration(animationMode.equals("reduced") ? 80 : 160).start(); }
         return box;
     }
 
@@ -558,8 +509,6 @@ public class MainActivity extends Activity {
         box.addView(sheetRow("Editar nome exibido", new View.OnClickListener() { public void onClick(View v) { d.dismiss(); renameApp(app); } }));
         box.addView(sheetRow(dockIds.contains(app.id) ? "Remover do dock" : "Adicionar ao dock", new View.OnClickListener() { public void onClick(View v) { if (dockIds.contains(app.id)) dockIds.remove(app.id); else dockIds.add(app.id); savePrefs(); d.dismiss(); rebuildSame(); } }));
         box.addView(sheetRow("Mover para o começo da área", new View.OnClickListener() { public void onClick(View v) { homeIds.remove(app.id); LinkedHashSet<String> n = new LinkedHashSet<>(); n.add(app.id); n.addAll(homeIds); homeIds = n; savePrefs(); d.dismiss(); buildHome(); } }));
-        box.addView(sheetRow("Mover para o fim da área", new View.OnClickListener() { public void onClick(View v) { homeIds.remove(app.id); homeIds.add(app.id); savePrefs(); d.dismiss(); buildHome(); } }));
-        box.addView(sheetRow("Remover da área", new View.OnClickListener() { public void onClick(View v) { homeIds.remove(app.id); savePrefs(); d.dismiss(); buildHome(); } }));
         box.addView(sheetRow(hiddenIds.contains(app.id) ? "Mostrar na gaveta" : "Ocultar da gaveta", new View.OnClickListener() { public void onClick(View v) { if (hiddenIds.contains(app.id)) hiddenIds.remove(app.id); else hiddenIds.add(app.id); savePrefs(); d.dismiss(); rebuildSame(); } }));
         box.addView(sheetRow("Cache e dados", new View.OnClickListener() { public void onClick(View v) { d.dismiss(); openAppInfo(app); } }));
         box.addView(sheetRow("Desinstalar", new View.OnClickListener() { public void onClick(View v) { d.dismiss(); uninstall(app); } }));
@@ -590,10 +539,6 @@ public class MainActivity extends Activity {
         box.addView(sheetRow("Ajustar colunas: " + columns, new View.OnClickListener() { public void onClick(View v) { columns = columns >= 6 ? 3 : columns + 1; savePrefs(); d.dismiss(); buildHome(); } }));
         box.addView(sheetRow("Tamanho dos ícones: " + iconSize + "dp", new View.OnClickListener() { public void onClick(View v) { iconSize += 4; if (iconSize > 68) iconSize = 48; savePrefs(); d.dismiss(); buildHome(); } }));
         box.addView(sheetRow(showNames ? "Ocultar nomes dos apps" : "Mostrar nomes dos apps", new View.OnClickListener() { public void onClick(View v) { showNames = !showNames; savePrefs(); d.dismiss(); buildHome(); } }));
-        box.addView(sheetRow("Formato dos ícones: " + iconShapeLabel(), new View.OnClickListener() { public void onClick(View v) { cycleIconShape(); d.dismiss(); buildHome(); } }));
-        box.addView(sheetRow("Tamanho dos nomes: " + labelSize + "sp", new View.OnClickListener() { public void onClick(View v) { labelSize += 1; if (labelSize > 14) labelSize = 10; savePrefs(); d.dismiss(); buildHome(); } }));
-        box.addView(sheetRow("Espaçamento da grade: " + gridGap + "dp", new View.OnClickListener() { public void onClick(View v) { gridGap += 2; if (gridGap > 18) gridGap = 6; savePrefs(); d.dismiss(); buildHome(); } }));
-        box.addView(sheetRow(workspaceLock ? "Destravar layout" : "Travar layout", new View.OnClickListener() { public void onClick(View v) { workspaceLock = !workspaceLock; savePrefs(); d.dismiss(); buildHome(); } }));
         box.addView(sheetRow("Limpar área de trabalho", new View.OnClickListener() { public void onClick(View v) { homeIds.clear(); savePrefs(); d.dismiss(); buildHome(); } }));
         d.setContentView(box); d.show();
     }
@@ -623,21 +568,17 @@ public class MainActivity extends Activity {
 
     private void showStyleSheet() {
         final Dialog d = sheet(false);
-        LinearLayout box = sheetBox("Personalizar", "Aurora Glass: temas, ícones, layout e movimento em um só lugar.");
+        LinearLayout box = sheetBox("Personalizar", "Escolha temas, ícones e layout com visual Aurora Glass.");
         LinearLayout tabs = row();
         tabs.addView(sheetMini("Temas", new View.OnClickListener() { public void onClick(View v) {} }), new LinearLayout.LayoutParams(0, dp(48), 1));
-        tabs.addView(sheetMini("Ícones", new View.OnClickListener() { public void onClick(View v) { cycleIconShape(); d.dismiss(); buildHome(); } }), new LinearLayout.LayoutParams(0, dp(48), 1));
-        tabs.addView(sheetMini("Layout", new View.OnClickListener() { public void onClick(View v) { d.dismiss(); showEditHomeSheet(); } }), new LinearLayout.LayoutParams(0, dp(48), 1));
+        tabs.addView(sheetMini("Ícones", new View.OnClickListener() { public void onClick(View v) { toast("Pacotes de ícones entram na próxima etapa"); } }), new LinearLayout.LayoutParams(0, dp(48), 1));
+        tabs.addView(sheetMini("Layout", new View.OnClickListener() { public void onClick(View v) { toast("Use Editar área para ajustar layout"); } }), new LinearLayout.LayoutParams(0, dp(48), 1));
         box.addView(tabs); box.addView(spaceH(12));
         styleOption(box, d, "aurora", "Aurora", "gradiente pastel e vidro fosco");
         styleOption(box, d, "mist", "Mist", "claro, limpo e suave");
         styleOption(box, d, "dusk", "Dusk", "profundo, roxo e elegante");
-        styleOption(box, d, "porcelain", "Porcelain", "branco técnico e confortável");
         styleOption(box, d, "amoled", "AMOLED Ink", "preto puro com alto contraste");
-        box.addView(spaceH(8));
-        box.addView(sheetRow("Formato dos ícones: " + iconShapeLabel(), new View.OnClickListener() { public void onClick(View v) { cycleIconShape(); d.dismiss(); buildHome(); } }));
-        box.addView(sheetRow("Barra A-Z: " + azModeLabel(), new View.OnClickListener() { public void onClick(View v) { cycleAzMode(); d.dismiss(); buildDrawer(); } }));
-        box.addView(sheetRow("Movimento: " + animationLabel(), new View.OnClickListener() { public void onClick(View v) { cycleAnimationMode(); d.dismiss(); buildHome(); } }));
+        styleOption(box, d, "bold", "Bold", "expressivo e intenso");
         d.setContentView(box); d.show();
     }
 
@@ -662,10 +603,6 @@ public class MainActivity extends Activity {
         list.addView(settingAction(R.drawable.ic_home, "Estilo da área", homeStyleLabel(), new View.OnClickListener() { public void onClick(View v) { cycleHomeStyle(); buildSettings(); } }));
         list.addView(settingAction(R.drawable.ic_dock, "Estilo do dock", dockStyleLabel(), new View.OnClickListener() { public void onClick(View v) { cycleDockStyle(); buildSettings(); } }));
         list.addView(settingAction(R.drawable.ic_refresh, "Animações", animationLabel(), new View.OnClickListener() { public void onClick(View v) { cycleAnimationMode(); buildSettings(); } }));
-        list.addView(settingAction(R.drawable.ic_grid, "Formato dos ícones", iconShapeLabel(), new View.OnClickListener() { public void onClick(View v) { cycleIconShape(); buildSettings(); } }));
-        list.addView(settingAction(R.drawable.ic_text, "Tamanho dos nomes", "Atual: " + labelSize + "sp", new View.OnClickListener() { public void onClick(View v) { labelSize += 1; if (labelSize > 14) labelSize = 10; savePrefs(); buildSettings(); } }));
-        list.addView(settingAction(R.drawable.ic_apps, "Barra A-Z", azModeLabel(), new View.OnClickListener() { public void onClick(View v) { cycleAzMode(); buildSettings(); } }));
-        list.addView(settingAction(R.drawable.ic_grid, "Espaçamento da grade", "Atual: " + gridGap + "dp", new View.OnClickListener() { public void onClick(View v) { gridGap += 2; if (gridGap > 18) gridGap = 6; savePrefs(); buildSettings(); } }));
         list.addView(settingAction(R.drawable.ic_palette, "Tom do papel de parede", wallpaperToneLabel(), new View.OnClickListener() { public void onClick(View v) { cycleWallpaperTone(); buildSettings(); } }));
         list.addView(settingAction(R.drawable.ic_grid, "Colunas da grade", "Atual: " + columns, new View.OnClickListener() { public void onClick(View v) { columns = columns >= 6 ? 3 : columns + 1; savePrefs(); buildSettings(); } }));
         list.addView(settingAction(R.drawable.ic_grid, "Tamanho dos ícones", "Atual: " + iconSize + "dp", new View.OnClickListener() { public void onClick(View v) { iconSize += 4; if (iconSize > 68) iconSize = 48; savePrefs(); buildSettings(); } }));
@@ -673,7 +610,7 @@ public class MainActivity extends Activity {
         list.addView(settingAction(R.drawable.ic_info, "Permissão de uso real", "Abre estatísticas reais do Android", new View.OnClickListener() { public void onClick(View v) { startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)); } }));
         list.addView(settingAction(R.drawable.ic_refresh, "Recarregar apps", allApps.size() + " apps encontrados", new View.OnClickListener() { public void onClick(View v) { loadApps(); buildSettings(); } }));
         list.addView(settingAction(R.drawable.ic_trash, "Resetar layout", "Limpa área, dock, nomes e ocultos", new View.OnClickListener() { public void onClick(View v) { resetLayout(); } }));
-        list.addView(settingAction(R.drawable.ic_info, "Sobre", "SW Launcher v0.11 Aurora Product UI", new View.OnClickListener() { public void onClick(View v) { showAbout(); } }));
+        list.addView(settingAction(R.drawable.ic_info, "Sobre", "SW Launcher v0.10 Aurora Glass Foundation", new View.OnClickListener() { public void onClick(View v) { showAbout(); } }));
     }
 
     private String styleLabel() {
@@ -727,32 +664,6 @@ public class MainActivity extends Activity {
 
     private String wallpaperToneLabel() { return wallpaperTone.equals("auto") ? "Automático" : "Manual"; }
     private void cycleWallpaperTone() { wallpaperTone = wallpaperTone.equals("auto") ? "manual" : "auto"; savePrefs(); }
-
-    private String iconShapeLabel() {
-        if (iconShape.equals("circle")) return "Círculo";
-        if (iconShape.equals("squircle")) return "Squircle";
-        if (iconShape.equals("minimal")) return "Minimal";
-        return "Expressive";
-    }
-    private void cycleIconShape() {
-        if (iconShape.equals("expressive")) iconShape = "squircle";
-        else if (iconShape.equals("squircle")) iconShape = "circle";
-        else if (iconShape.equals("circle")) iconShape = "minimal";
-        else iconShape = "expressive";
-        savePrefs();
-    }
-
-    private String azModeLabel() {
-        if (azMode.equals("hidden")) return "Oculta";
-        if (azMode.equals("full")) return "Completa";
-        return "Minimal";
-    }
-    private void cycleAzMode() {
-        if (azMode.equals("minimal")) azMode = "full";
-        else if (azMode.equals("full")) azMode = "hidden";
-        else azMode = "minimal";
-        savePrefs();
-    }
 
     private void showDrawerSettings() {
         final Dialog d = sheet(false);
@@ -884,7 +795,7 @@ public class MainActivity extends Activity {
         ImageView icon = new ImageView(this); icon.setImageResource(iconRes); icon.setImageTintList(ColorStateList.valueOf(onAccent)); icon.setPadding(dp(14), dp(14), dp(14), dp(14)); icon.setBackground(round(accent, dp(22), Color.TRANSPARENT)); row.addView(icon, new LinearLayout.LayoutParams(dp(60), dp(60)));
         row.addView(spaceW(14)); LinearLayout texts = col(); texts.addView(label(title, 17, text, true)); texts.addView(label(subtitle, 13, muted, false)); row.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
         TextView arrow = label("›", 28, muted, true); row.addView(arrow);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, dp(densityMode.equals("compact") ? 74 : 84)); p.setMargins(0, dp(6), 0, dp(6)); row.setLayoutParams(p); return row;
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, dp(densityMode.equals("compact") ? 80 : 92)); p.setMargins(0, dp(6), 0, dp(6)); row.setLayoutParams(p); return row;
     }
 
     private void addQuick(GridLayout grid, int icon, String title, String sub, View.OnClickListener l) {
@@ -894,16 +805,9 @@ public class MainActivity extends Activity {
         GridLayout.LayoutParams gp = new GridLayout.LayoutParams(); gp.width = (getResources().getDisplayMetrics().widthPixels - dp(60)) / 2; gp.height = dp(densityMode.equals("compact") ? 102 : 118); gp.setMargins(0, 0, dp(10), dp(10)); c.setLayoutParams(gp); grid.addView(c);
     }
 
-    private void addToolChip(LinearLayout row, int icon, String title, View.OnClickListener l) {
-        LinearLayout c = new LinearLayout(this); c.setOrientation(LinearLayout.HORIZONTAL); c.setGravity(Gravity.CENTER); c.setPadding(dp(14), 0, dp(16), 0); c.setBackground(round(glassSurface(), dp(24), glassOutline())); c.setOnClickListener(l); press(c);
-        ImageView iv = new ImageView(this); iv.setImageResource(icon); iv.setImageTintList(ColorStateList.valueOf(accent)); c.addView(iv, new LinearLayout.LayoutParams(dp(22), dp(22)));
-        c.addView(spaceW(8)); c.addView(label(title, 14, text, true));
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, dp(50)); p.setMargins(0, 0, dp(8), 0); row.addView(c, p);
-    }
-
     private TextView label(String s, int sp, int color, boolean bold) { TextView t = new TextView(this); t.setText(s); t.setTextSize(sp); t.setTextColor(color); t.setIncludeFontPadding(true); if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD); return t; }
     private TextView pill(String s, boolean selected) { TextView t = label(s, 14, selected ? onAccent : text, true); t.setGravity(Gravity.CENTER); t.setPadding(dp(22), 0, dp(22), 0); t.setBackground(round(selected ? accent : surface, dp(25), outline)); LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, dp(54)); t.setLayoutParams(p); press(t); return t; }
-    private TextView searchPill(String s) { TextView t = label("⌕  " + s, 15, muted, true); t.setGravity(Gravity.CENTER_VERTICAL); t.setPadding(dp(22), 0, dp(22), 0); t.setBackground(round(glassSurfaceStrong(), dp(26), glassOutline())); press(t); return t; }
+    private TextView searchPill(String s) { TextView t = label("⌕  " + s, 16, muted, true); t.setGravity(Gravity.CENTER_VERTICAL); t.setPadding(dp(22), 0, dp(22), 0); t.setBackground(round(glassSurfaceStrong(), dp(26), glassOutline())); press(t); return t; }
     private EditText editSearch(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setHintTextColor(muted); e.setTextColor(text); e.setTextSize(17); e.setSingleLine(true); e.setPadding(dp(24), 0, dp(24), 0); e.setBackground(round(glassSurfaceStrong(), dp(26), glassOutline())); return e; }
     private TextView iconButton(int res) { TextView b = label("", 20, text, true); b.setGravity(Gravity.CENTER); b.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0); b.setCompoundDrawableTintList(ColorStateList.valueOf(text)); b.setBackground(round(glassSurface(), dp(26), glassOutline())); LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(58), dp(58)); b.setLayoutParams(p); press(b); return b; }
 
@@ -952,9 +856,8 @@ public class MainActivity extends Activity {
     }
 
     private int iconPlate() {
-        if (iconShape.equals("minimal")) return Color.argb(130, Color.red(surface2), Color.green(surface2), Color.blue(surface2));
-        if (style != null && style.equals("aurora")) return Color.argb(232, 255, 251, 255);
-        if (style != null && style.equals("mist")) return Color.argb(238, 255, 255, 255);
+        if (style != null && style.equals("aurora")) return Color.argb(225, 255, 251, 255);
+        if (style != null && style.equals("mist")) return Color.argb(235, 255, 255, 255);
         if (style != null && style.equals("dusk")) return Color.argb(220, 80, 65, 122);
         return surface2;
     }
@@ -968,26 +871,6 @@ public class MainActivity extends Activity {
         LinearLayout l = col();
         l.setBackground(round(glassSurface(), radius, glassOutline()));
         return l;
-    }
-
-    private int iconRadius() {
-        if (iconShape.equals("circle")) return dp(999);
-        if (iconShape.equals("squircle")) return dp(18);
-        if (iconShape.equals("minimal")) return dp(14);
-        return dp(24);
-    }
-
-    private void attachWorkspaceGestures(View v) {
-        v.setOnTouchListener(new View.OnTouchListener() { public boolean onTouch(View view, MotionEvent e) {
-            if (screen == null || !screen.equals("home")) return false;
-            if (e.getAction() == MotionEvent.ACTION_DOWN) { gestureDownX = e.getX(); gestureDownY = e.getY(); return true; }
-            if (e.getAction() == MotionEvent.ACTION_UP) {
-                float dx = e.getX() - gestureDownX; float dy = e.getY() - gestureDownY;
-                if (Math.abs(dy) > Math.abs(dx) && dy < -dp(70)) { buildDrawer(); return true; }
-                if (Math.abs(dy) > Math.abs(dx) && dy > dp(85)) { showStyleSheet(); return true; }
-            }
-            return true;
-        } });
     }
 
     private LinearLayout row() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.HORIZONTAL); l.setGravity(Gravity.CENTER_VERTICAL); return l; }
@@ -1007,15 +890,15 @@ public class MainActivity extends Activity {
             float downScale = animationMode.equals("reduced") ? 0.99f : 0.97f;
             long downMs = animationMode.equals("reduced") ? 55 : 90;
             long upMs = animationMode.equals("reduced") ? 70 : 120;
-            if (e.getAction() == MotionEvent.ACTION_DOWN) view.animate().scaleX(downScale).scaleY(downScale).alpha(0.88f).setDuration(downMs).setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
-            if (e.getAction() == MotionEvent.ACTION_UP || e.getAction() == MotionEvent.ACTION_CANCEL) view.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(upMs).setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+            if (e.getAction() == MotionEvent.ACTION_DOWN) view.animate().scaleX(downScale).scaleY(downScale).alpha(0.88f).setDuration(downMs).start();
+            if (e.getAction() == MotionEvent.ACTION_UP || e.getAction() == MotionEvent.ACTION_CANCEL) view.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(upMs).start();
             return false;
         } });
     }
     private void fadeIn(View v) {
         if (animationMode.equals("off")) return;
         v.setAlpha(0f); v.setTranslationY(dp(animationMode.equals("reduced") ? 4 : 10));
-        v.animate().alpha(1f).translationY(0).setDuration(animationMode.equals("reduced") ? 120 : 240).setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+        v.animate().alpha(1f).translationY(0).setDuration(animationMode.equals("reduced") ? 120 : 220).start();
     }
     private void toast(String s) { android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_SHORT).show(); }
 }

@@ -1,4 +1,4 @@
-# SW Launcher v0.10 Aurora Glass Foundation
+# SW Launcher v0.11 Aurora Product UI
 
 Direção visual baseada no conceito Aurora Glass:
 - fundo em gradiente pastel roxo/azul/rosa;
