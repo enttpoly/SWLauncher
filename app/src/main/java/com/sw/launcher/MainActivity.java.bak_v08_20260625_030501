@@ -87,7 +87,6 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         prefs = getSharedPreferences("sw_launcher_v08", MODE_PRIVATE);
-        migrateAuroraDefaults();
         loadPrefs();
         applyPalette();
         loadApps();
@@ -98,36 +97,15 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void migrateAuroraDefaults() {
-        int applied = prefs.getInt("aurora_migration", 0);
-        if (applied >= 10) return;
-        SharedPreferences.Editor e = prefs.edit();
-        e.putInt("aurora_migration", 10);
-        e.putString("style", "aurora");
-        e.putString("home_style", "focus");
-        e.putString("dock_style", "glass");
-        e.putString("density_mode", "comfort");
-        e.putString("animation_mode", "smooth");
-        if (!prefs.contains("icon_size")) e.putInt("icon_size", 54);
-        if (!prefs.contains("columns")) e.putInt("columns", 4);
-        e.apply();
-    }
-
     private void setupSystemBars() {
         if (Build.VERSION.SDK_INT >= 21) {
-            getWindow().setStatusBarColor(Color.TRANSPARENT);
-            getWindow().setNavigationBarColor(style != null && style.equals("aurora") ? Color.rgb(238, 229, 255) : bg);
-        }
-        if (Build.VERSION.SDK_INT >= 23) {
-            int flags = 0;
-            if (isLightStyle()) flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            if (Build.VERSION.SDK_INT >= 26 && isLightStyle()) flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-            getWindow().getDecorView().setSystemUiVisibility(flags);
+            getWindow().setStatusBarColor(bg);
+            getWindow().setNavigationBarColor(bg);
         }
     }
 
     private void loadPrefs() {
-        style = prefs.getString("style", "aurora");
+        style = prefs.getString("style", "amoled");
         columns = prefs.getInt("columns", 4);
         iconSize = prefs.getInt("icon_size", 52);
         showNames = prefs.getBoolean("show_names", true);
@@ -178,14 +156,8 @@ public class MainActivity extends Activity {
     }
 
     private void applyPalette() {
-        String s = style == null ? "aurora" : style.toLowerCase(Locale.ROOT);
-        if (s.equals("aurora")) {
-            bg = Color.rgb(221, 211, 255); surface = Color.rgb(246, 239, 255); surface2 = Color.rgb(255, 251, 255); outline = Color.rgb(215, 199, 242); text = Color.rgb(68, 50, 112); muted = Color.rgb(106, 93, 134); accent = Color.rgb(128, 105, 210); onAccent = Color.WHITE;
-        } else if (s.equals("mist")) {
-            bg = Color.rgb(238, 242, 250); surface = Color.rgb(252, 253, 255); surface2 = Color.rgb(236, 241, 250); outline = Color.rgb(207, 216, 232); text = Color.rgb(38, 45, 63); muted = Color.rgb(100, 110, 132); accent = Color.rgb(90, 118, 185); onAccent = Color.WHITE;
-        } else if (s.equals("dusk")) {
-            bg = Color.rgb(32, 27, 58); surface = Color.rgb(47, 39, 80); surface2 = Color.rgb(65, 52, 105); outline = Color.rgb(93, 78, 136); text = Color.rgb(250, 246, 255); muted = Color.rgb(208, 197, 226); accent = Color.rgb(221, 183, 255); onAccent = Color.rgb(46, 20, 80);
-        } else if (s.equals("porcelain")) {
+        String s = style == null ? "amoled" : style.toLowerCase(Locale.ROOT);
+        if (s.equals("porcelain")) {
             bg = Color.rgb(242, 244, 249); surface = Color.rgb(252, 253, 255); surface2 = Color.rgb(229, 235, 247); outline = Color.rgb(194, 203, 220); text = Color.rgb(18, 21, 28); muted = Color.rgb(88, 96, 112); accent = Color.rgb(75, 104, 166); onAccent = Color.WHITE;
         } else if (s.equals("soft")) {
             bg = Color.rgb(18, 19, 24); surface = Color.rgb(31, 33, 41); surface2 = Color.rgb(43, 46, 57); outline = Color.rgb(66, 72, 91); text = Color.rgb(244, 246, 252); muted = Color.rgb(160, 166, 184); accent = Color.rgb(188, 209, 255); onAccent = Color.rgb(12, 17, 30);
@@ -238,7 +210,7 @@ public class MainActivity extends Activity {
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(dp(densityMode.equals("compact") ? 18 : 22), dp(densityMode.equals("compact") ? 14 : 18), dp(densityMode.equals("compact") ? 18 : 22), dp(10));
-        root.setBackground(auroraBackground());
+        root.setBackgroundColor(bg);
         setContentView(root);
     }
 
@@ -247,7 +219,7 @@ public class MainActivity extends Activity {
         baseRoot();
         LinearLayout header = row();
         LinearLayout titleBox = col();
-        TextView sw = label("✦ SW", 12, accent, true);
+        TextView sw = label("sw", 12, accent, true);
         TextView title = label("Launcher", 28, text, true);
         titleBox.addView(sw); titleBox.addView(title);
         header.addView(titleBox, new LinearLayout.LayoutParams(0, -2, 1));
@@ -267,20 +239,12 @@ public class MainActivity extends Activity {
         hero.setPadding(dp(densityMode.equals("compact") ? 18 : 24), dp(densityMode.equals("compact") ? 14 : 20), dp(densityMode.equals("compact") ? 18 : 24), dp(densityMode.equals("compact") ? 14 : 18));
         clockText = label("", densityMode.equals("compact") ? 40 : 46, text, true);
         TextView date = label(new SimpleDateFormat("EEEE, dd MMM.", new Locale("pt", "BR")).format(new Date()), 16, muted, true);
-        TextView desc = label(greetingText(), 14, muted, false);
-        LinearLayout weather = row();
-        weather.setPadding(0, dp(8), 0, 0);
-        weather.addView(label("☀ 24°", 26, text, true));
-        weather.addView(spaceW(14));
-        LinearLayout weatherText = col();
-        weatherText.addView(label("Parcialmente nublado", 13, muted, true));
-        weatherText.addView(label("↑ 27°  ↓ 18°", 12, muted, false));
-        weather.addView(weatherText);
-        hero.addView(clockText); hero.addView(date); hero.addView(spaceH(4)); hero.addView(desc); hero.addView(weather);
+        TextView desc = label("Seu espaço está pronto. Pesquise, organize e personalize.", 14, muted, false);
+        hero.addView(clockText); hero.addView(date); hero.addView(spaceH(12)); hero.addView(desc);
         content.addView(hero, lp(-1, -2));
         startClock();
 
-        TextView search = searchPill("Pesquisar ou abrir apps");
+        TextView search = searchPill("Pesquisar apps, atalhos e ajustes");
         search.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { buildDrawer(); } });
         content.addView(spaceH(16)); content.addView(search, lp(-1, dp(densityMode.equals("compact") ? 56 : 64)));
 
@@ -446,7 +410,7 @@ public class MainActivity extends Activity {
         box.setLayoutParams(gp);
 
         FrameLayout plate = new FrameLayout(this);
-        plate.setBackground(round(iconPlate(), dp(22), Color.TRANSPARENT));
+        plate.setBackground(round(surface2, dp(20), Color.TRANSPARENT));
         ImageView iv = new ImageView(this);
         iv.setImageDrawable(app.icon);
         iv.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
@@ -568,17 +532,12 @@ public class MainActivity extends Activity {
 
     private void showStyleSheet() {
         final Dialog d = sheet(false);
-        LinearLayout box = sheetBox("Personalizar", "Escolha temas, ícones e layout com visual Aurora Glass.");
-        LinearLayout tabs = row();
-        tabs.addView(sheetMini("Temas", new View.OnClickListener() { public void onClick(View v) {} }), new LinearLayout.LayoutParams(0, dp(48), 1));
-        tabs.addView(sheetMini("Ícones", new View.OnClickListener() { public void onClick(View v) { toast("Pacotes de ícones entram na próxima etapa"); } }), new LinearLayout.LayoutParams(0, dp(48), 1));
-        tabs.addView(sheetMini("Layout", new View.OnClickListener() { public void onClick(View v) { toast("Use Editar área para ajustar layout"); } }), new LinearLayout.LayoutParams(0, dp(48), 1));
-        box.addView(tabs); box.addView(spaceH(12));
-        styleOption(box, d, "aurora", "Aurora", "gradiente pastel e vidro fosco");
-        styleOption(box, d, "mist", "Mist", "claro, limpo e suave");
-        styleOption(box, d, "dusk", "Dusk", "profundo, roxo e elegante");
-        styleOption(box, d, "amoled", "AMOLED Ink", "preto puro com alto contraste");
-        styleOption(box, d, "bold", "Bold", "expressivo e intenso");
+        LinearLayout box = sheetBox("Aparência", "Cores tonais, AMOLED e presets inspirados no Android atual.");
+        styleOption(box, d, "porcelain", "Pixel Porcelain", "claro, limpo e suave");
+        styleOption(box, d, "soft", "Android Soft", "escuro com tons discretos");
+        styleOption(box, d, "bright", "Android Bright", "azul vivo e tecnológico");
+        styleOption(box, d, "bold", "Android Bold", "violeta expressivo");
+        styleOption(box, d, "amoled", "AMOLED Ink", "preto puro para economia e contraste");
         d.setContentView(box); d.show();
     }
 
@@ -610,7 +569,7 @@ public class MainActivity extends Activity {
         list.addView(settingAction(R.drawable.ic_info, "Permissão de uso real", "Abre estatísticas reais do Android", new View.OnClickListener() { public void onClick(View v) { startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)); } }));
         list.addView(settingAction(R.drawable.ic_refresh, "Recarregar apps", allApps.size() + " apps encontrados", new View.OnClickListener() { public void onClick(View v) { loadApps(); buildSettings(); } }));
         list.addView(settingAction(R.drawable.ic_trash, "Resetar layout", "Limpa área, dock, nomes e ocultos", new View.OnClickListener() { public void onClick(View v) { resetLayout(); } }));
-        list.addView(settingAction(R.drawable.ic_info, "Sobre", "SW Launcher v0.10 Aurora Glass Foundation", new View.OnClickListener() { public void onClick(View v) { showAbout(); } }));
+        list.addView(settingAction(R.drawable.ic_info, "Sobre", "SW Launcher v0.9 Flexible Layout", new View.OnClickListener() { public void onClick(View v) { showAbout(); } }));
     }
 
     private String styleLabel() {
@@ -756,7 +715,7 @@ public class MainActivity extends Activity {
     private LinearLayout sheetBox(String title, String sub) {
         LinearLayout box = col();
         box.setPadding(dp(28), dp(28), dp(28), dp(24));
-        box.setBackground(round(glassSurfaceStrong(), dp(28), glassOutline()));
+        box.setBackground(round(surface, dp(28), outline));
         if (title.length() > 0) box.addView(label(title, 26, text, true));
         if (sub.length() > 0) { TextView s = label(sub, 14, muted, false); s.setPadding(0, dp(4), 0, dp(16)); box.addView(s); }
         return box;
@@ -766,7 +725,7 @@ public class MainActivity extends Activity {
         TextView v = label(name, 16, text, true);
         v.setGravity(Gravity.CENTER_VERTICAL);
         v.setPadding(dp(22), 0, dp(22), 0);
-        v.setBackground(round(glassSurface2(), dp(22), glassOutline()));
+        v.setBackground(round(surface2, dp(22), outline));
         v.setOnClickListener(l);
         press(v);
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, dp(densityMode.equals("compact") ? 56 : 62)); p.setMargins(0, dp(6), 0, dp(6)); v.setLayoutParams(p);
@@ -776,7 +735,7 @@ public class MainActivity extends Activity {
     private TextView sheetMini(String name, View.OnClickListener l) {
         TextView v = label(name, 14, text, true);
         v.setGravity(Gravity.CENTER);
-        v.setBackground(round(glassSurface2(), dp(20), glassOutline()));
+        v.setBackground(round(surface2, dp(20), outline));
         v.setOnClickListener(l);
         press(v);
         return v;
@@ -791,7 +750,7 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout settingAction(int iconRes, String title, String subtitle, View.OnClickListener l) {
-        LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(16), dp(14), dp(18), dp(14)); row.setBackground(round(glassSurface(), dp(28), glassOutline())); row.setOnClickListener(l); press(row);
+        LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(16), dp(14), dp(18), dp(14)); row.setBackground(round(surface, dp(28), outline)); row.setOnClickListener(l); press(row);
         ImageView icon = new ImageView(this); icon.setImageResource(iconRes); icon.setImageTintList(ColorStateList.valueOf(onAccent)); icon.setPadding(dp(14), dp(14), dp(14), dp(14)); icon.setBackground(round(accent, dp(22), Color.TRANSPARENT)); row.addView(icon, new LinearLayout.LayoutParams(dp(60), dp(60)));
         row.addView(spaceW(14)); LinearLayout texts = col(); texts.addView(label(title, 17, text, true)); texts.addView(label(subtitle, 13, muted, false)); row.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
         TextView arrow = label("›", 28, muted, true); row.addView(arrow);
@@ -799,7 +758,7 @@ public class MainActivity extends Activity {
     }
 
     private void addQuick(GridLayout grid, int icon, String title, String sub, View.OnClickListener l) {
-        LinearLayout c = col(); c.setPadding(dp(18), dp(16), dp(18), dp(16)); c.setBackground(round(glassSurface(), dp(24), glassOutline())); c.setOnClickListener(l); press(c);
+        LinearLayout c = col(); c.setPadding(dp(18), dp(16), dp(18), dp(16)); c.setBackground(round(surface, dp(24), outline)); c.setOnClickListener(l); press(c);
         ImageView iv = new ImageView(this); iv.setImageResource(icon); iv.setImageTintList(ColorStateList.valueOf(accent)); c.addView(iv, new LinearLayout.LayoutParams(dp(28), dp(28)));
         c.addView(spaceH(8)); c.addView(label(title, 16, text, true)); c.addView(label(sub, 12, muted, false));
         GridLayout.LayoutParams gp = new GridLayout.LayoutParams(); gp.width = (getResources().getDisplayMetrics().widthPixels - dp(60)) / 2; gp.height = dp(densityMode.equals("compact") ? 102 : 118); gp.setMargins(0, 0, dp(10), dp(10)); c.setLayoutParams(gp); grid.addView(c);
@@ -807,69 +766,13 @@ public class MainActivity extends Activity {
 
     private TextView label(String s, int sp, int color, boolean bold) { TextView t = new TextView(this); t.setText(s); t.setTextSize(sp); t.setTextColor(color); t.setIncludeFontPadding(true); if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD); return t; }
     private TextView pill(String s, boolean selected) { TextView t = label(s, 14, selected ? onAccent : text, true); t.setGravity(Gravity.CENTER); t.setPadding(dp(22), 0, dp(22), 0); t.setBackground(round(selected ? accent : surface, dp(25), outline)); LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, dp(54)); t.setLayoutParams(p); press(t); return t; }
-    private TextView searchPill(String s) { TextView t = label("⌕  " + s, 16, muted, true); t.setGravity(Gravity.CENTER_VERTICAL); t.setPadding(dp(22), 0, dp(22), 0); t.setBackground(round(glassSurfaceStrong(), dp(26), glassOutline())); press(t); return t; }
-    private EditText editSearch(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setHintTextColor(muted); e.setTextColor(text); e.setTextSize(17); e.setSingleLine(true); e.setPadding(dp(24), 0, dp(24), 0); e.setBackground(round(glassSurfaceStrong(), dp(26), glassOutline())); return e; }
-    private TextView iconButton(int res) { TextView b = label("", 20, text, true); b.setGravity(Gravity.CENTER); b.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0); b.setCompoundDrawableTintList(ColorStateList.valueOf(text)); b.setBackground(round(glassSurface(), dp(26), glassOutline())); LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(58), dp(58)); b.setLayoutParams(p); press(b); return b; }
-
-    private boolean isLightStyle() {
-        return style != null && (style.equals("aurora") || style.equals("mist") || style.equals("porcelain"));
-    }
-
-    private String greetingText() {
-        int h = new Date().getHours();
-        if (h < 12) return "Bom dia! Seu espaço está pronto.";
-        if (h < 18) return "Boa tarde! Organize e crie seu fluxo.";
-        return "Boa noite! Personalize do seu jeito.";
-    }
-
-    private GradientDrawable auroraBackground() {
-        if (style != null && style.equals("aurora")) {
-            return new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{Color.rgb(227, 218, 255), Color.rgb(248, 202, 229), Color.rgb(120, 112, 222), Color.rgb(58, 57, 140)});
-        }
-        if (style != null && style.equals("mist")) {
-            return new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{Color.rgb(246, 249, 255), Color.rgb(226, 234, 252), Color.rgb(210, 221, 245)});
-        }
-        if (style != null && style.equals("dusk")) {
-            return new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{Color.rgb(35, 28, 68), Color.rgb(78, 55, 117), Color.rgb(20, 22, 55)});
-        }
-        GradientDrawable g = new GradientDrawable();
-        g.setColor(bg);
-        return g;
-    }
-
-    private int glassSurface() {
-        if (style != null && (style.equals("aurora") || style.equals("mist") || style.equals("porcelain"))) return Color.argb(184, Color.red(surface), Color.green(surface), Color.blue(surface));
-        if (style != null && style.equals("dusk")) return Color.argb(188, Color.red(surface), Color.green(surface), Color.blue(surface));
-        return surface;
-    }
-
-    private int glassSurfaceStrong() {
-        if (style != null && (style.equals("aurora") || style.equals("mist") || style.equals("porcelain"))) return Color.argb(220, Color.red(surface), Color.green(surface), Color.blue(surface));
-        if (style != null && style.equals("dusk")) return Color.argb(226, Color.red(surface), Color.green(surface), Color.blue(surface));
-        return surface;
-    }
-
-    private int glassSurface2() {
-        if (style != null && (style.equals("aurora") || style.equals("mist") || style.equals("porcelain"))) return Color.argb(205, Color.red(surface2), Color.green(surface2), Color.blue(surface2));
-        if (style != null && style.equals("dusk")) return Color.argb(205, Color.red(surface2), Color.green(surface2), Color.blue(surface2));
-        return surface2;
-    }
-
-    private int iconPlate() {
-        if (style != null && style.equals("aurora")) return Color.argb(225, 255, 251, 255);
-        if (style != null && style.equals("mist")) return Color.argb(235, 255, 255, 255);
-        if (style != null && style.equals("dusk")) return Color.argb(220, 80, 65, 122);
-        return surface2;
-    }
-
-    private int glassOutline() {
-        if (style != null && (style.equals("aurora") || style.equals("mist") || style.equals("porcelain"))) return Color.argb(150, Color.red(outline), Color.green(outline), Color.blue(outline));
-        return outline;
-    }
+    private TextView searchPill(String s) { TextView t = label("⌕  " + s, 16, muted, true); t.setGravity(Gravity.CENTER_VERTICAL); t.setPadding(dp(22), 0, dp(22), 0); t.setBackground(round(surface, dp(26), outline)); press(t); return t; }
+    private EditText editSearch(String hint) { EditText e = new EditText(this); e.setHint(hint); e.setHintTextColor(muted); e.setTextColor(text); e.setTextSize(17); e.setSingleLine(true); e.setPadding(dp(24), 0, dp(24), 0); e.setBackground(round(surface, dp(26), outline)); return e; }
+    private TextView iconButton(int res) { TextView b = label("", 20, text, true); b.setGravity(Gravity.CENTER); b.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0); b.setCompoundDrawableTintList(ColorStateList.valueOf(text)); b.setBackground(round(surface, dp(26), outline)); LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(58), dp(58)); b.setLayoutParams(p); press(b); return b; }
 
     private LinearLayout card(int radius) {
         LinearLayout l = col();
-        l.setBackground(round(glassSurface(), radius, glassOutline()));
+        l.setBackground(round(surface, radius, outline));
         return l;
     }
 
