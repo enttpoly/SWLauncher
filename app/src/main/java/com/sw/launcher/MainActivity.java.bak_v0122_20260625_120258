@@ -1,0 +1,407 @@
+package com.sw.launcher;
+
+import android.app.Activity;
+import android.app.Dialog;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
+import android.view.animation.DecelerateInterpolator;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.GridLayout;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.SeekBar;
+import android.widget.Space;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+public class MainActivity extends Activity {
+    private SharedPreferences prefs;
+    private final ArrayList<AppEntry> apps = new ArrayList<>();
+    private final Map<String, AppEntry> appMap = new HashMap<>();
+    private LinearLayout root;
+
+    private int purple = Color.rgb(92, 62, 160);
+    private int violet = Color.rgb(126, 104, 218);
+    private int text = Color.rgb(58, 43, 91);
+    private int sub = Color.rgb(104, 88, 130);
+    private int glass = Color.argb(205, 255, 246, 255);
+    private int glass2 = Color.argb(175, 255, 255, 255);
+    private int outline = Color.argb(90, 255, 255, 255);
+    private float downY = 0;
+
+    static class AppEntry {
+        String label;
+        String pkg;
+        String cls;
+        Drawable icon;
+        String key() { return pkg + "/" + cls; }
+    }
+
+    @Override
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        prefs = getSharedPreferences("sw_launcher_v12", MODE_PRIVATE);
+        loadApps();
+        if (!prefs.getBoolean("setup_done", false)) showWelcome();
+        else showHome();
+    }
+
+    private void loadApps() {
+        apps.clear();
+        appMap.clear();
+        PackageManager pm = getPackageManager();
+        Intent main = new Intent(Intent.ACTION_MAIN, null);
+        main.addCategory(Intent.CATEGORY_LAUNCHER);
+        ArrayList<ResolveInfo> infos = new ArrayList<>(pm.queryIntentActivities(main, 0));
+        Collections.sort(infos, new Comparator<ResolveInfo>() {
+            public int compare(ResolveInfo a, ResolveInfo b) {
+                return String.valueOf(a.loadLabel(pm)).compareToIgnoreCase(String.valueOf(b.loadLabel(pm)));
+            }
+        });
+        Set<String> hidden = splitSet(prefs.getString("hidden_apps", ""));
+        for (ResolveInfo ri : infos) {
+            ActivityInfo ai = ri.activityInfo;
+            AppEntry e = new AppEntry();
+            e.label = String.valueOf(ri.loadLabel(pm));
+            e.pkg = ai.packageName;
+            e.cls = ai.name;
+            e.icon = ri.loadIcon(pm);
+            appMap.put(e.key(), e);
+            if (!hidden.contains(e.key())) apps.add(e);
+        }
+    }
+
+    private void applyFrame(View content, boolean aurora) {
+        root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(18), dp(18), dp(18), dp(8));
+        if (aurora) {
+            GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                    new int[]{Color.rgb(239, 220, 255), Color.rgb(249, 196, 226), Color.rgb(111, 99, 225)});
+            root.setBackground(bg);
+        } else {
+            root.setBackgroundColor(Color.rgb(8, 8, 10));
+            text = Color.WHITE;
+            sub = Color.rgb(176, 176, 190);
+            glass = Color.argb(220, 28, 28, 34);
+            glass2 = Color.argb(205, 34, 34, 40);
+            outline = Color.argb(75, 255, 255, 255);
+        }
+        root.addView(content, new LinearLayout.LayoutParams(-1, -1));
+        setContentView(root);
+        animateIn(content);
+    }
+
+    private void showWelcome() {
+        text = Color.WHITE; sub = Color.rgb(200,200,205); glass = Color.argb(0,0,0,0);
+        LinearLayout page = col(); page.setGravity(Gravity.CENTER_HORIZONTAL); page.setPadding(dp(6), dp(20), dp(6), dp(20));
+        Space top = new Space(this); page.addView(top, new LinearLayout.LayoutParams(1, 0, 1));
+        TextView logo = tv("✦\nSW", 46, Color.rgb(232, 80, 52), true); logo.setGravity(Gravity.CENTER); page.addView(logo);
+        TextView hi = tv("Bem-vindo ao", 14, Color.WHITE, true); hi.setGravity(Gravity.CENTER); page.addView(hi);
+        TextView name = tv("SW Launcher", 31, Color.WHITE, true); name.setGravity(Gravity.CENTER); page.addView(name);
+        TextView tag = tv("Personal. Expressive. Yours.", 14, Color.rgb(210,210,218), false); tag.setGravity(Gravity.CENTER); page.addView(tag);
+        Button start = pillButton("Iniciar", Color.rgb(230, 74, 45), Color.WHITE); addTop(page, start, 34);
+        start.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ askDefaultHome(); showSetupSearch(); }});
+        Space bottom = new Space(this); page.addView(bottom, new LinearLayout.LayoutParams(1, 0, 1));
+        LinearLayout footer = row(); footer.setGravity(Gravity.CENTER_VERTICAL);
+        TextView restore = tv("Restaurar backup", 14, Color.rgb(230,74,45), true);
+        TextView skip = tv("Ignorar configuração", 14, Color.rgb(230,74,45), true);
+        footer.addView(restore); Space sp = new Space(this); footer.addView(sp, new LinearLayout.LayoutParams(0,1,1)); footer.addView(skip);
+        page.addView(footer, new LinearLayout.LayoutParams(-1, dp(42)));
+        skip.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ prefs.edit().putBoolean("setup_done", true).apply(); showHome(); }});
+        applyFrame(page, false);
+    }
+
+    private void showSetupSearch() {
+        LinearLayout page = setupBase("Pesquisar", 1);
+        addSettingSelect(page, "Modo", "Imersiva", null);
+        addSettingSwitch(page, "Pesquisar por atalhos", "Indexação local de atalhos de apps para busca rápida e privada.", "search_shortcuts", true);
+        addSettingSwitch(page, "Pesquisa de contatos", "Pode ser ativado depois nas permissões. A busca deve ficar local no aparelho.", "search_contacts", false);
+        addSection(page, "Tela inicial");
+        addSettingSelect(page, "Posição barra de pesquisa", prefs.getString("home_search_pos", "Dock abaixo dos ícones"), "home_search_pos");
+        addSection(page, "Gaveta de apps");
+        addSettingSelect(page, "Posição barra de pesquisa", prefs.getString("drawer_search_pos", "Superior"), "drawer_search_pos");
+        setupNext(page, new View.OnClickListener(){ public void onClick(View v){ showSetupIconStyle(); }});
+        applyFrame(wrap(page), false);
+    }
+
+    private void showSetupIconStyle() {
+        LinearLayout page = setupBase("Estilo do ícone", 2);
+        LinearLayout colors = row(); colors.setGravity(Gravity.CENTER); int[] cs = {Color.rgb(26,181,211), Color.WHITE, Color.GREEN, Color.MAGENTA};
+        for (int c: cs) { TextView chip = tv("", 1, c, false); chip.setBackground(round(c, dp(16), Color.TRANSPARENT)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(62), dp(62)); lp.setMargins(dp(8),0,dp(8),0); colors.addView(chip, lp); }
+        page.addView(colors, new LinearLayout.LayoutParams(-1, dp(86)));
+        addSeek(page, "Tamanho do ícone", "icon_size", 112, 78, 145);
+        GridLayout shapes = new GridLayout(this); shapes.setColumnCount(3); shapes.setPadding(0, dp(20),0,0);
+        addShape(shapes, "Padrão", "Expressive"); addShape(shapes, "Arredondado", "Circle"); addShape(shapes, "Squircle", "Squircle"); addShape(shapes, "Minimal", "Minimal"); addShape(shapes, "Mais", "More");
+        page.addView(shapes, new LinearLayout.LayoutParams(-1, -2));
+        setupNext(page, new View.OnClickListener(){ public void onClick(View v){ showSetupDrawer(); }});
+        applyFrame(wrap(page), false);
+    }
+
+    private void showSetupDrawer() {
+        LinearLayout page = setupBase("Gaveta de apps", 3);
+        addSettingSelect(page, "Estilo da gaveta de apps", prefs.getString("drawer_style", "Vertical"), "drawer_style");
+        addSettingSwitch(page, "Mostrar teclado", "Mostrar imediatamente o teclado quando a gaveta for aberta.", "show_keyboard", false);
+        addSettingSwitch(page, "Apps frequentemente usados", "Mantém apps mais usados em linha superior para acesso rápido.", "frequent_apps", true);
+        addSettingSwitch(page, "Atalhos usados com frequência", "Mantém ações mais usadas no topo da busca.", "frequent_shortcuts", true);
+        addSettingSwitch(page, "Pastas inteligentes", "Organizar automaticamente apps por categoria.", "smart_folders", false);
+        setupNext(page, new View.OnClickListener(){ public void onClick(View v){ showSetupPreview(); }});
+        applyFrame(wrap(page), false);
+    }
+
+    private void showSetupPreview() {
+        LinearLayout page = col(); page.setPadding(dp(8), dp(24), dp(8), dp(16));
+        TextView back = tv("‹", 44, Color.WHITE, false); page.addView(back, new LinearLayout.LayoutParams(dp(64), dp(64))); back.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ showSetupDrawer(); }});
+        Space s = new Space(this); page.addView(s, new LinearLayout.LayoutParams(1,0,1));
+        TextView done = tv("Tudo feito!", 34, Color.WHITE, true); page.addView(done);
+        Space mid = new Space(this); page.addView(mid, new LinearLayout.LayoutParams(1,0,1));
+        TextView sparkle = tv("✦✧✦", 58, Color.WHITE, false); sparkle.setGravity(Gravity.CENTER); page.addView(sparkle, new LinearLayout.LayoutParams(-1, dp(80)));
+        TextView msg = tv("A configuração foi concluída", 18, Color.WHITE, false); msg.setGravity(Gravity.CENTER); page.addView(msg, new LinearLayout.LayoutParams(-1, dp(44)));
+        Space bot = new Space(this); page.addView(bot, new LinearLayout.LayoutParams(1,0,1));
+        Button go = pillButton("Ir para o início", Color.rgb(230,74,45), Color.WHITE); page.addView(go, new LinearLayout.LayoutParams(-1, dp(58))); go.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ prefs.edit().putBoolean("setup_done", true).apply(); showHome(); }});
+        applyFrame(page, false);
+    }
+
+    private LinearLayout setupBase(String title, int step) {
+        LinearLayout page = col(); page.setPadding(dp(6), dp(18), dp(6), dp(20));
+        LinearLayout top = row(); TextView back = tv("‹", 42, Color.WHITE, false); top.addView(back, new LinearLayout.LayoutParams(dp(62), dp(62))); Space sp = new Space(this); top.addView(sp, new LinearLayout.LayoutParams(0,1,1)); top.addView(progress(step), new LinearLayout.LayoutParams(dp(120), dp(8))); Space sp2 = new Space(this); top.addView(sp2, new LinearLayout.LayoutParams(0,1,1)); page.addView(top);
+        back.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ showWelcome(); }});
+        TextView h = tv(title, 32, Color.WHITE, true); LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(-1, dp(88)); page.addView(h, hlp);
+        return page;
+    }
+
+    private View progress(int step) {
+        LinearLayout box = row(); box.setGravity(Gravity.CENTER); box.setBackground(round(Color.argb(120,180,180,188), dp(4), Color.TRANSPARENT));
+        TextView fill = tv("",1,Color.WHITE,false); fill.setBackground(round(Color.rgb(230,74,45), dp(4), Color.TRANSPARENT));
+        box.addView(fill, new LinearLayout.LayoutParams(dp(step * 32), dp(6))); Space rem = new Space(this); box.addView(rem, new LinearLayout.LayoutParams(0,1,1)); return box;
+    }
+
+    private void setupNext(LinearLayout page, View.OnClickListener l) {
+        Space s = new Space(this); page.addView(s, new LinearLayout.LayoutParams(1, 0, 1));
+        LinearLayout row = row(); row.setGravity(Gravity.RIGHT); Button b = pillButton("→", Color.rgb(230,74,45), Color.WHITE); row.addView(b, new LinearLayout.LayoutParams(dp(74), dp(74))); page.addView(row); b.setOnClickListener(l);
+    }
+
+    private void showHome() {
+        setAuroraColors();
+        ensureDefaults();
+        LinearLayout page = col(); page.setPadding(0,0,0,0);
+        LinearLayout header = row(); header.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout brand = col(); TextView mini = tv("✦ SW", 12, purple, true); TextView title = tv("Launcher", 28, text, true); brand.addView(mini); brand.addView(title);
+        header.addView(brand, new LinearLayout.LayoutParams(0, dp(86), 1));
+        Button appsBtn = chip("Apps", true); Button settingsBtn = chip("⚙", false);
+        header.addView(appsBtn, new LinearLayout.LayoutParams(dp(104), dp(74))); header.addView(settingsBtn, new LinearLayout.LayoutParams(dp(74), dp(74)));
+        page.addView(header);
+        appsBtn.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ showAppDrawer(); }});
+        settingsBtn.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ showSettings(); }});
+
+        LinearLayout clock = col(); clock.setPadding(dp(26), dp(22), dp(26), dp(20)); clock.setBackground(round(glass, dp(30), outline));
+        TextView time = tv(new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date()), 46, text, true); clock.addView(time);
+        TextView date = tv(new SimpleDateFormat("EEEE, dd MMM.", new Locale("pt","BR")).format(new Date()), 18, sub, true); clock.addView(date);
+        TextView gm = tv(greeting() + " Seu espaço está pronto.", 16, sub, false); clock.addView(gm);
+        LinearLayout weather = row(); weather.setGravity(Gravity.CENTER_VERTICAL); weather.addView(tv("☀ 24°", 24, text, true)); TextView desc = tv("   Parcialmente nublado\n   ↑ 27° ↓ 18°", 13, sub, true); weather.addView(desc); clock.addView(weather);
+        addTop(page, clock, 10);
+
+        TextView search = tv("⌕  Pesquisar ou abrir apps", 17, sub, true); search.setPadding(dp(26),0,0,0); search.setGravity(Gravity.CENTER_VERTICAL); search.setBackground(round(glass2, dp(28), outline)); addTop(page, search, 16, -1, dp(72)); search.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ showAppDrawer(); }});
+
+        LinearLayout quick = row(); quick.setGravity(Gravity.CENTER); quick.addView(actionCard("▦", "Gaveta", apps.size()+" apps", new View.OnClickListener(){ public void onClick(View v){ showAppDrawer(); }}), new LinearLayout.LayoutParams(0, dp(104), 1)); addGap(quick, 12); quick.addView(actionCard("◈", "Aparência", "cores e layout", new View.OnClickListener(){ public void onClick(View v){ showPersonalize(); }}), new LinearLayout.LayoutParams(0, dp(104), 1)); addTop(page, quick, 16);
+        LinearLayout quick2 = row(); quick2.setGravity(Gravity.CENTER); quick2.addView(actionCard("＋", "Editar", "área de trabalho", new View.OnClickListener(){ public void onClick(View v){ showEditSheet(); }}), new LinearLayout.LayoutParams(0, dp(104), 1)); addGap(quick2, 12); quick2.addView(actionCard("☰", "Ajustes", "launcher", new View.OnClickListener(){ public void onClick(View v){ showSettings(); }}), new LinearLayout.LayoutParams(0, dp(104), 1)); addTop(page, quick2, 12);
+
+        LinearLayout workHead = row(); TextView area = tv("Área de trabalho", 20, text, true); workHead.addView(area, new LinearLayout.LayoutParams(0, dp(48), 1)); TextView edit = tv("Editar", 13, purple, true); edit.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); workHead.addView(edit, new LinearLayout.LayoutParams(dp(90), dp(48))); page.addView(workHead); edit.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ showEditSheet(); }});
+        GridLayout grid = appGrid(getList("home_apps"), false); page.addView(grid, new LinearLayout.LayoutParams(-1, 0, 1));
+        page.addView(dock(), new LinearLayout.LayoutParams(-1, dp(82)));
+        page.setOnTouchListener(new View.OnTouchListener(){ public boolean onTouch(View v, MotionEvent e){ if(e.getAction()==MotionEvent.ACTION_DOWN) downY=e.getY(); if(e.getAction()==MotionEvent.ACTION_UP){ float dy=e.getY()-downY; if(dy < -120){ showAppDrawer(); return true;} if(dy>140){ showPersonalize(); return true;} } return true; }});
+        applyFrame(page, true);
+    }
+
+    private void showAppDrawer() {
+        setAuroraColors(); loadApps();
+        LinearLayout page = col(); page.setPadding(0,0,0,0);
+        LinearLayout head = row(); head.setGravity(Gravity.CENTER_VERTICAL); TextView back = tv("‹", 42, text, false); head.addView(back, new LinearLayout.LayoutParams(dp(64), dp(64))); LinearLayout titles = col(); titles.addView(tv("Apps", 30, text, true)); titles.addView(tv(apps.size()+" apps instalados", 14, sub, false)); head.addView(titles, new LinearLayout.LayoutParams(0, dp(72), 1)); page.addView(head); back.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ showHome(); }});
+        final EditText search = new EditText(this); search.setHint("Pesquisar apps"); search.setTextColor(text); search.setHintTextColor(sub); search.setSingleLine(true); search.setTextSize(18); search.setPadding(dp(22),0,dp(22),0); search.setBackground(round(glass, dp(28), outline)); page.addView(search, new LinearLayout.LayoutParams(-1, dp(74)));
+        HorizontalScrollView hsv = new HorizontalScrollView(this); hsv.setHorizontalScrollBarEnabled(false); LinearLayout filters = row(); filters.setPadding(0, dp(18), 0, dp(18)); String[] fs = {"Todos","Recentes","Usados","Jogos","Social","Mídia","Ferramentas"}; for(int i=0;i<fs.length;i++){ filters.addView(filter(fs[i], i==0)); } hsv.addView(filters); page.addView(hsv, new LinearLayout.LayoutParams(-1, dp(90)));
+        final FrameLayout content = new FrameLayout(this); page.addView(content, new LinearLayout.LayoutParams(-1,0,1));
+        final Runnable[] render = new Runnable[1];
+        render[0] = new Runnable(){ public void run(){ content.removeAllViews(); ArrayList<String> keys = new ArrayList<>(); String q = search.getText().toString().toLowerCase(Locale.ROOT).trim(); for(AppEntry a: apps){ if(q.length()==0 || a.label.toLowerCase(Locale.ROOT).contains(q)) keys.add(a.key()); } ScrollView sv = new ScrollView(MainActivity.this); sv.addView(appGrid(keys, true)); content.addView(sv, new FrameLayout.LayoutParams(-1,-1)); TextView az = azBar(); FrameLayout.LayoutParams azlp = new FrameLayout.LayoutParams(dp(42), -1, Gravity.RIGHT); content.addView(az, azlp); }};
+        search.addTextChangedListener(new TextWatcher(){ public void beforeTextChanged(CharSequence s,int st,int c,int a){} public void onTextChanged(CharSequence s,int st,int b,int c){ render[0].run(); } public void afterTextChanged(Editable e){} });
+        render[0].run(); applyFrame(page, true);
+    }
+
+    private void showSettings() {
+        text = Color.WHITE; sub = Color.rgb(185,190,210); glass = Color.argb(0,0,0,0); outline = Color.TRANSPARENT;
+        LinearLayout body = col(); body.setPadding(dp(4), dp(24), dp(4), 0);
+        TextView title = tv("SW Launcher", 34, Color.WHITE, true); body.addView(title, new LinearLayout.LayoutParams(-1, dp(72)));
+        TextView search = tv("⌕   Pesquisar", 18, Color.rgb(176,185,215), false); search.setGravity(Gravity.CENTER_VERTICAL); search.setPadding(dp(22),0,0,0); search.setBackground(round(Color.rgb(35,42,64), dp(28), Color.TRANSPARENT)); body.addView(search, new LinearLayout.LayoutParams(-1, dp(72)));
+        addSettingsRow(body, "⌘", "SW AI", "Chat, personalização e privacidade", null);
+        addSettingsRow(body, "▯", "Tela inicial", "Grade, layout dos ícones, dock e mais", new View.OnClickListener(){ public void onClick(View v){ showHomeSettings(); }});
+        addSettingsRow(body, "▦", "Gaveta de apps", "Layout, estilo, gestos e busca", new View.OnClickListener(){ public void onClick(View v){ showDrawerSettings(); }});
+        addSettingsRow(body, "▣", "Pastas", "Estilos de janelas, cor e layout", null);
+        addSettingsRow(body, "⌕", "Pesquisar", "Janela de pesquisa, atalhos e contatos", new View.OnClickListener(){ public void onClick(View v){ showSetupSearch(); }});
+        addSettingsRow(body, "▱", "Cartões", "Cards na gaveta, feed e tela inicial", null);
+        addSettingsRow(body, "◌", "Aparência", "Ícones, menu pop-up e cores", new View.OnClickListener(){ public void onClick(View v){ showPersonalize(); }});
+        addSettingsRow(body, "∽", "Gestos e entradas", "Deslizar, tocar, pinçar e botão home", null);
+        addSettingsRow(body, "▌", "Página de feed", "Controle páginas na borda da tela", null);
+        addSettingsRow(body, "✣", "Integrações", "Apps, permissões, atalhos e Android", new View.OnClickListener(){ public void onClick(View v){ openSystemHomeSettings(); }});
+        LinearLayout nav = row(); nav.setGravity(Gravity.CENTER); nav.setBackgroundColor(Color.rgb(28,29,36)); nav.addView(navItem("⚙\nConfigurações", true), new LinearLayout.LayoutParams(0, dp(82), 1)); nav.addView(navItem("◒\nEstilo", false), new LinearLayout.LayoutParams(0, dp(82), 1)); body.addView(nav);
+        applyFrame(wrap(body), false);
+    }
+
+    private void showDrawerSettings() {
+        text = Color.WHITE; sub = Color.rgb(185,190,210); glass = Color.argb(0,0,0,0); outline = Color.TRANSPARENT;
+        LinearLayout p = col(); p.setPadding(dp(4), dp(18), dp(4), dp(24));
+        LinearLayout h = row(); TextView back = tv("‹", 42, Color.WHITE, false); h.addView(back, new LinearLayout.LayoutParams(dp(60), dp(64))); h.addView(tv("Gaveta de apps", 28, Color.WHITE, true), new LinearLayout.LayoutParams(0, dp(64), 1)); p.addView(h); back.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ showSettings(); }});
+        TextView preview = tv("⌘", 32, Color.WHITE, true); preview.setGravity(Gravity.CENTER_VERTICAL); preview.setPadding(dp(24),0,0,0); preview.setBackground(round(Color.rgb(28,58,120), dp(28), Color.TRANSPARENT)); p.addView(preview, new LinearLayout.LayoutParams(-1, dp(72)));
+        LinearLayout appsPreview = row(); appsPreview.setGravity(Gravity.CENTER); for(String n: new String[]{"Calculator","Clock","Messages","Settings"}) appsPreview.addView(previewApp(n), new LinearLayout.LayoutParams(0, dp(120), 1)); addTop(p, appsPreview, 16);
+        addSection(p, "Layout"); addSeek(p, "Tamanho do ícone", "icon_size", prefs.getInt("icon_size", 112), 78, 145); addSettingSwitch(p, "Coincidir com a área de trabalho", "Usar o mesmo tamanho de ícone e texto da home.", "match_home", true); addSettingSelect(p, "Título", prefs.getString("drawer_title", "Ativado"), "drawer_title"); addSettingSelect(p, "Grade da gaveta de apps", prefs.getInt("columns",4)+" × 5", "columns_select"); addSettingSelect(p, "Cores", prefs.getString("theme", "Aurora"), "theme"); addSettingSelect(p, "Estilo da gaveta de apps", prefs.getString("drawer_style", "Vertical"), "drawer_style"); addSettingSelect(p, "Animação da transição", prefs.getString("drawer_anim", "Deslizar p/ cima"), "drawer_anim"); addSettingSelect(p, "Posição barra de pesquisa", prefs.getString("drawer_search_pos", "Superior"), "drawer_search_pos");
+        applyFrame(wrap(p), false);
+    }
+
+    private void showHomeSettings() {
+        showEditSheet();
+    }
+
+    private void showPersonalize() {
+        final Dialog d = sheetDialog(); LinearLayout p = col(); p.setPadding(dp(22), dp(22), dp(22), dp(22));
+        p.addView(tv("Personalizar", 26, text, true)); p.addView(tv("Temas, ícones e layout Aurora Glass.", 14, sub, false)); addDivider(p);
+        LinearLayout tabs = row(); tabs.addView(filter("Temas", true)); tabs.addView(filter("Ícones", false)); tabs.addView(filter("Layout", false)); p.addView(tabs, new LinearLayout.LayoutParams(-1, dp(72)));
+        addChoice(p, "Aurora", "Gradiente pastel principal", "theme", "Aurora", d);
+        addChoice(p, "Mist", "Claro suave e translúcido", "theme", "Mist", d);
+        addChoice(p, "Dusk", "Azul escuro premium", "theme", "Dusk", d);
+        addChoice(p, "AMOLED Ink", "Preto puro com acento roxo", "theme", "AMOLED", d);
+        addChoice(p, "Bold", "Cores fortes e contraste", "theme", "Bold", d);
+        d.setContentView(p); showSheet(d);
+    }
+
+    private void showEditSheet() {
+        final Dialog d = sheetDialog(); LinearLayout p = col(); p.setPadding(dp(22),dp(22),dp(22),dp(22));
+        p.addView(tv("Editar área", 26, text, true)); p.addView(tv("Monte sua tela inicial sem misturar com a gaveta.", 14, sub, false)); addDivider(p);
+        addSheetAction(p, "Adicionar apps", new View.OnClickListener(){ public void onClick(View v){ d.dismiss(); showAppDrawer(); }});
+        addSheetAction(p, "Mudar estilo", new View.OnClickListener(){ public void onClick(View v){ d.dismiss(); showPersonalize(); }});
+        addSheetAction(p, "Ajustar colunas", new View.OnClickListener(){ public void onClick(View v){ int c=prefs.getInt("columns",4); c = c>=6?4:c+1; prefs.edit().putInt("columns", c).apply(); toast("Grade: "+c+" colunas"); d.dismiss(); showHome(); }});
+        addSheetAction(p, "Tamanho dos ícones", new View.OnClickListener(){ public void onClick(View v){ int s=prefs.getInt("icon_size",112); s = s>=132?92:s+10; prefs.edit().putInt("icon_size", s).apply(); toast("Ícones: "+s+"%"); d.dismiss(); showHome(); }});
+        addSheetAction(p, prefs.getBoolean("layout_locked", false)?"Destravar layout":"Travar layout", new View.OnClickListener(){ public void onClick(View v){ boolean locked=!prefs.getBoolean("layout_locked",false); prefs.edit().putBoolean("layout_locked",locked).apply(); toast(locked?"Layout travado":"Layout destravado"); d.dismiss(); showHome(); }});
+        addSheetAction(p, "Limpar área de trabalho", new View.OnClickListener(){ public void onClick(View v){ prefs.edit().remove("home_apps").apply(); ensureDefaults(); d.dismiss(); showHome(); }});
+        d.setContentView(p); showSheet(d);
+    }
+
+    private GridLayout appGrid(ArrayList<String> keys, boolean drawer) {
+        GridLayout g = new GridLayout(this); int cols = prefs.getInt("columns", 4); g.setColumnCount(cols); g.setPadding(0, dp(10), drawer?dp(42):0, dp(18));
+        int iconSize = dp(Math.max(54, Math.min(88, prefs.getInt("icon_size",112) * 64 / 112)));
+        for (String k: keys) { AppEntry a = appMap.get(k); if(a==null) continue; LinearLayout cell = col(); cell.setGravity(Gravity.CENTER); cell.setPadding(dp(4), dp(8), dp(4), dp(8)); ImageView iv = new ImageView(this); iv.setImageDrawable(a.icon); iv.setPadding(dp(9), dp(9), dp(9), dp(9)); iv.setBackground(round(Color.argb(230,255,250,255), dp(20), Color.argb(100,255,255,255))); cell.addView(iv, new LinearLayout.LayoutParams(iconSize, iconSize)); TextView lab = tv(nameFor(a), drawer?13:12, text, false); lab.setGravity(Gravity.CENTER); lab.setSingleLine(false); cell.addView(lab, new LinearLayout.LayoutParams(-1, dp(38))); final AppEntry app = a; cell.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ openApp(app); }}); cell.setOnLongClickListener(new View.OnLongClickListener(){ public boolean onLongClick(View v){ showAppMenu(app); return true; }}); pressAnim(cell);
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(); lp.width = getResources().getDisplayMetrics().widthPixels / cols - dp(drawer?8:14); lp.height = dp(drawer?128:118); g.addView(cell, lp); }
+        return g;
+    }
+
+    private LinearLayout dock() {
+        LinearLayout d = row(); d.setGravity(Gravity.CENTER); d.setPadding(dp(12), dp(8), dp(12), dp(8)); d.setBackground(round(Color.argb(205,255,246,255), dp(30), outline));
+        ArrayList<String> keys = getList("dock_apps"); int count=0; for(String k: keys){ AppEntry a=appMap.get(k); if(a!=null && count<5){ final AppEntry app=a; ImageView iv=new ImageView(this); iv.setImageDrawable(app.icon); iv.setPadding(dp(8),dp(8),dp(8),dp(8)); iv.setBackground(round(Color.argb(170,255,255,255), dp(18), Color.TRANSPARENT)); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0, dp(58), 1); lp.setMargins(dp(4),0,dp(4),0); d.addView(iv,lp); iv.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ openApp(app); }}); count++; }}
+        TextView center = tv("⌕", 30, purple, true); center.setGravity(Gravity.CENTER); center.setBackground(round(Color.rgb(134,106,216), dp(32), Color.TRANSPARENT)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(64), 1); lp.setMargins(dp(4),0,dp(4),0); d.addView(center, Math.min(2,d.getChildCount()), lp); center.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ showAppDrawer(); }});
+        return d;
+    }
+
+    private void showAppMenu(final AppEntry app) {
+        final Dialog d = sheetDialog(); LinearLayout p = col(); p.setPadding(dp(22), dp(22), dp(22), dp(22)); LinearLayout top = row(); ImageView icon = new ImageView(this); icon.setImageDrawable(app.icon); icon.setBackground(round(Color.WHITE, dp(18), Color.TRANSPARENT)); icon.setPadding(dp(8),dp(8),dp(8),dp(8)); top.addView(icon, new LinearLayout.LayoutParams(dp(72), dp(72))); LinearLayout names = col(); names.setPadding(dp(14),0,0,0); names.addView(tv(nameFor(app),24,text,true)); names.addView(tv(app.pkg,13,sub,false)); top.addView(names, new LinearLayout.LayoutParams(0, dp(76),1)); p.addView(top); addDivider(p);
+        LinearLayout actions = row(); actions.addView(miniButton("Abrir", new View.OnClickListener(){ public void onClick(View v){ d.dismiss(); openApp(app); }}), new LinearLayout.LayoutParams(0, dp(58),1)); actions.addView(miniButton("Fixar", new View.OnClickListener(){ public void onClick(View v){ addToList("home_apps", app.key(), 12); d.dismiss(); showHome(); }}), new LinearLayout.LayoutParams(0, dp(58),1)); actions.addView(miniButton("Info", new View.OnClickListener(){ public void onClick(View v){ openInfo(app); }}), new LinearLayout.LayoutParams(0, dp(58),1)); p.addView(actions);
+        addSheetAction(p, "Editar nome exibido", new View.OnClickListener(){ public void onClick(View v){ d.dismiss(); renameApp(app); }});
+        addSheetAction(p, "Adicionar ao dock", new View.OnClickListener(){ public void onClick(View v){ addToList("dock_apps", app.key(), 6); d.dismiss(); showHome(); }});
+        addSheetAction(p, "Mover para começo da área", new View.OnClickListener(){ public void onClick(View v){ moveToStart("home_apps", app.key()); d.dismiss(); showHome(); }});
+        addSheetAction(p, "Mover para fim da área", new View.OnClickListener(){ public void onClick(View v){ addToList("home_apps", app.key(), 12); d.dismiss(); showHome(); }});
+        addSheetAction(p, "Ocultar da gaveta", new View.OnClickListener(){ public void onClick(View v){ addToList("hidden_apps", app.key(), 999); d.dismiss(); loadApps(); showAppDrawer(); }});
+        addSheetAction(p, "Cache e dados", new View.OnClickListener(){ public void onClick(View v){ openInfo(app); }});
+        addSheetAction(p, "Desinstalar", new View.OnClickListener(){ public void onClick(View v){ Intent it = new Intent(Intent.ACTION_DELETE, Uri.parse("package:"+app.pkg)); startActivity(it); }});
+        d.setContentView(p); showSheet(d);
+    }
+
+    private void renameApp(final AppEntry app) {
+        final Dialog d = sheetDialog(); LinearLayout p = col(); p.setPadding(dp(22),dp(22),dp(22),dp(22)); p.addView(tv("Editar nome", 26, text, true)); final EditText input = new EditText(this); input.setText(nameFor(app)); input.setTextSize(18); input.setSingleLine(true); input.setPadding(dp(18),0,dp(18),0); input.setBackground(round(glass2, dp(18), outline)); p.addView(input, new LinearLayout.LayoutParams(-1, dp(64))); Button save = pillButton("Salvar", purple, Color.WHITE); addTop(p, save, 18); save.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ prefs.edit().putString("name_"+app.key(), input.getText().toString()).apply(); d.dismiss(); showHome(); }}); d.setContentView(p); showSheet(d);
+    }
+
+    private void ensureDefaults() {
+        if (prefs.getString("home_apps", "").length()==0) { ArrayList<String> pick = pickApps(new String[]{"Gmail","Fotos","Photos","Play Store","Chrome","Discord","Roblox","Brawl","YouTube"}, 8); prefs.edit().putString("home_apps", join(pick)).apply(); }
+        if (prefs.getString("dock_apps", "").length()==0) { ArrayList<String> pick = pickApps(new String[]{"Telefone","Phone","Mensagens","Messages","Chrome","Câmera","Camera","Gmail"}, 5); prefs.edit().putString("dock_apps", join(pick)).apply(); }
+    }
+
+    private ArrayList<String> pickApps(String[] names, int max) { ArrayList<String> out = new ArrayList<>(); for(String n: names){ for(AppEntry a: apps){ if(a.label.toLowerCase(Locale.ROOT).contains(n.toLowerCase(Locale.ROOT)) && !out.contains(a.key())){ out.add(a.key()); break; } } } for(AppEntry a: apps){ if(out.size()>=max) break; if(!out.contains(a.key())) out.add(a.key()); } return out; }
+    private ArrayList<String> getList(String key) { String raw = prefs.getString(key, ""); ArrayList<String> out = new ArrayList<>(); if(raw.length()==0) return out; for(String x: raw.split("\\|")){ if(x.trim().length()>0) out.add(x); } return out; }
+    private void saveList(String key, ArrayList<String> list) { prefs.edit().putString(key, join(list)).apply(); }
+    private void addToList(String key, String val, int max) { ArrayList<String> l=getList(key); l.remove(val); l.add(val); while(l.size()>max) l.remove(0); saveList(key,l); toast("Salvo"); }
+    private void moveToStart(String key, String val) { ArrayList<String> l=getList(key); l.remove(val); l.add(0,val); saveList(key,l); toast("Movido"); }
+    private String join(ArrayList<String> list) { StringBuilder b=new StringBuilder(); for(String s:list){ if(b.length()>0)b.append('|'); b.append(s); } return b.toString(); }
+    private Set<String> splitSet(String raw) { Set<String> s=new HashSet<>(); if(raw==null||raw.length()==0)return s; for(String x:raw.split("\\|")) if(x.length()>0) s.add(x); return s; }
+
+    private String nameFor(AppEntry app) { return prefs.getString("name_"+app.key(), app.label); }
+    private void openApp(AppEntry app) { try { Intent it = new Intent(Intent.ACTION_MAIN); it.addCategory(Intent.CATEGORY_LAUNCHER); it.setClassName(app.pkg, app.cls); it.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(it); } catch(Exception e){ toast("Não foi possível abrir"); } }
+    private void openInfo(AppEntry app) { try { Intent i = new Intent("android.settings.APPLICATION_DETAILS_SETTINGS"); i.setData(Uri.parse("package:"+app.pkg)); startActivity(i); } catch(Exception e){ toast("Info indisponível"); } }
+    private void askDefaultHome() { try { Intent i = new Intent("android.settings.HOME_SETTINGS"); startActivity(i); } catch(Exception e){ openSystemHomeSettings(); } }
+    private void openSystemHomeSettings() { try { startActivity(new Intent("android.settings.MANAGE_DEFAULT_APPS_SETTINGS")); } catch(Exception e){ try { Intent selector = new Intent(Intent.ACTION_MAIN); selector.addCategory(Intent.CATEGORY_HOME); selector.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(selector); } catch(Exception ignored){} } }
+
+    private LinearLayout actionCard(String icon, String title, String desc, View.OnClickListener l) { LinearLayout c=col(); c.setPadding(dp(22),dp(16),dp(18),dp(12)); c.setBackground(round(glass2, dp(22), outline)); c.addView(tv(icon, 32, violet, true)); c.addView(tv(title,16,text,true)); c.addView(tv(desc,13,sub,false)); c.setOnClickListener(l); pressAnim(c); return c; }
+    private TextView filter(String label, boolean on) { TextView t=tv(label,14,on?Color.WHITE:text,true); t.setGravity(Gravity.CENTER); t.setPadding(dp(20),0,dp(20),0); t.setBackground(round(on?violet:glass2, dp(25), outline)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, dp(54)); lp.setMargins(0,0,dp(10),0); t.setLayoutParams(lp); return t; }
+    private Button chip(String label, boolean wide) { Button b=new Button(this); b.setText(label); b.setTextSize(wide?14:24); b.setTextColor(text); b.setTypeface(Typeface.DEFAULT_BOLD); b.setAllCaps(false); b.setBackground(round(glass2, dp(28), outline)); pressAnim(b); return b; }
+    private TextView azBar() { String mode = prefs.getString("az_style", "Minimal"); String letters = mode.equals("Oculta")?"":"A\n\nB\n\nC\n\nD\n\nE\n\nF\n\nG\n\nH\n\nI\n\nJ\n\nK\n\nL\n\nM\n\nN\n\nO\n\nP\n\nQ\n\nR\n\nS\n\nT\n\nU\n\nV\n\nW\n\nX\n\nY\n\nZ"; TextView t=tv(letters,10,sub,true); t.setGravity(Gravity.CENTER); t.setBackground(round(Color.argb(mode.equals("Completa")?190:105,255,255,255), dp(18), outline)); return t; }
+    private TextView navItem(String s, boolean on){ TextView t=tv(s,13,on?Color.WHITE:Color.rgb(170,170,180),true); t.setGravity(Gravity.CENTER); return t; }
+    private LinearLayout previewApp(String n){ LinearLayout l=col(); l.setGravity(Gravity.CENTER); TextView icon=tv("▣",28,Color.WHITE,true); icon.setGravity(Gravity.CENTER); icon.setBackground(round(Color.rgb(80,110,170),dp(18),Color.TRANSPARENT)); l.addView(icon,new LinearLayout.LayoutParams(dp(58),dp(58))); TextView name=tv(n,12,Color.WHITE,false); name.setGravity(Gravity.CENTER); l.addView(name); return l; }
+
+    private void addSettingsRow(LinearLayout p, String ic, String title, String desc, View.OnClickListener l) { LinearLayout r=row(); r.setGravity(Gravity.CENTER_VERTICAL); r.setPadding(dp(16),dp(12),dp(10),dp(12)); TextView i=tv(ic,28,Color.rgb(145,165,220),true); i.setGravity(Gravity.CENTER); r.addView(i,new LinearLayout.LayoutParams(dp(62),dp(68))); LinearLayout texts=col(); texts.addView(tv(title,21,Color.WHITE,true)); texts.addView(tv(desc,14,Color.rgb(198,202,216),false)); r.addView(texts,new LinearLayout.LayoutParams(0,dp(78),1)); r.setOnClickListener(l); pressAnim(r); p.addView(r); }
+    private void addSheetAction(LinearLayout p, String label, View.OnClickListener l){ TextView v=tv(label,17,text,true); v.setGravity(Gravity.CENTER_VERTICAL); v.setPadding(dp(22),0,0,0); v.setBackground(round(glass2, dp(22), outline)); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(64)); lp.setMargins(0,dp(10),0,0); p.addView(v,lp); v.setOnClickListener(l); pressAnim(v); }
+    private Button miniButton(String label, View.OnClickListener l){ Button b=pillButton(label, glass2, text); b.setOnClickListener(l); return b; }
+    private void addChoice(LinearLayout p, String title, String desc, final String key, final String value, final Dialog d){ addSheetAction(p, (prefs.getString(key, "Aurora").equals(value)?"✓ ":"")+title+"  •  "+desc, new View.OnClickListener(){ public void onClick(View v){ prefs.edit().putString(key,value).apply(); d.dismiss(); showHome(); }}); }
+    private void addSettingSwitch(LinearLayout p, String title, String desc, final String key, boolean def) { LinearLayout r=row(); r.setGravity(Gravity.CENTER_VERTICAL); LinearLayout texts=col(); texts.addView(tv(title,20,Color.WHITE,true)); texts.addView(tv(desc,13,sub,false)); r.addView(texts,new LinearLayout.LayoutParams(0,dp(82),1)); final TextView sw=tv(prefs.getBoolean(key,def)?"●":"○",42,prefs.getBoolean(key,def)?Color.rgb(230,74,45):Color.rgb(160,160,170),true); sw.setGravity(Gravity.CENTER); r.addView(sw,new LinearLayout.LayoutParams(dp(72),dp(72))); r.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ boolean n=!prefs.getBoolean(key,false); prefs.edit().putBoolean(key,n).apply(); sw.setText(n?"●":"○"); sw.setTextColor(n?Color.rgb(230,74,45):Color.rgb(160,160,170)); }}); p.addView(r); }
+    private void addSettingSelect(LinearLayout p, String title, String value, final String key) { LinearLayout r=row(); r.setGravity(Gravity.CENTER_VERTICAL); r.addView(tv(title,20,Color.WHITE,false), new LinearLayout.LayoutParams(0,dp(76),1)); TextView v=tv(value+"  ▾",14,Color.WHITE,false); v.setGravity(Gravity.CENTER); v.setBackground(round(Color.TRANSPARENT, dp(14), Color.rgb(230,74,45))); r.addView(v,new LinearLayout.LayoutParams(dp(150),dp(58))); p.addView(r); }
+    private void addSeek(LinearLayout p, String title, final String key, int val, int min, int max) { LinearLayout top=row(); top.addView(tv(title,19,Color.WHITE,false), new LinearLayout.LayoutParams(0,dp(54),1)); final TextView percent=tv(val+"%",18,Color.WHITE,false); percent.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL); top.addView(percent,new LinearLayout.LayoutParams(dp(90),dp(54))); p.addView(top); SeekBar sb=new SeekBar(this); sb.setMax(max-min); sb.setProgress(val-min); p.addView(sb,new LinearLayout.LayoutParams(-1,dp(46))); sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){ public void onProgressChanged(SeekBar b,int pr,boolean f){ int v=78+pr; prefs.edit().putInt(key,v).apply(); percent.setText(v+"%"); } public void onStartTrackingTouch(SeekBar b){} public void onStopTrackingTouch(SeekBar b){} }); }
+    private void addShape(GridLayout g, final String name, final String value){ LinearLayout l=col(); l.setGravity(Gravity.CENTER); TextView s=tv("",1,Color.WHITE,false); s.setBackground(round(value.equals("Circle")?Color.rgb(140,140,140):Color.rgb(230,74,45), value.equals("Circle")?dp(28):dp(12), Color.TRANSPARENT)); l.addView(s,new LinearLayout.LayoutParams(dp(58),dp(58))); TextView label=tv(name,14,Color.WHITE,false); label.setGravity(Gravity.CENTER); l.addView(label); l.setOnClickListener(new View.OnClickListener(){ public void onClick(View v){ prefs.edit().putString("icon_shape",value).apply(); toast("Ícones: "+name); }}); GridLayout.LayoutParams lp=new GridLayout.LayoutParams(); lp.width=getResources().getDisplayMetrics().widthPixels/3-dp(24); lp.height=dp(120); g.addView(l,lp); }
+    private void addSection(LinearLayout p, String label){ TextView s=tv(label,14,Color.rgb(230,74,45),true); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(52)); lp.setMargins(0,dp(8),0,0); p.addView(s,lp); }
+    private void addDivider(LinearLayout p){ TextView d=tv("",1,Color.TRANSPARENT,false); d.setBackgroundColor(outline); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(1)); lp.setMargins(0,dp(16),0,dp(12)); p.addView(d,lp); }
+
+    private Dialog sheetDialog(){ Dialog d=new Dialog(this); d.requestWindowFeature(Window.FEATURE_NO_TITLE); return d; }
+    private void showSheet(Dialog d){ d.show(); Window w=d.getWindow(); if(w!=null){ w.setBackgroundDrawableResource(android.R.color.transparent); WindowManager.LayoutParams lp=new WindowManager.LayoutParams(); lp.copyFrom(w.getAttributes()); lp.width=WindowManager.LayoutParams.MATCH_PARENT; lp.height=WindowManager.LayoutParams.WRAP_CONTENT; lp.gravity=Gravity.BOTTOM; w.setAttributes(lp); } View v=d.findViewById(android.R.id.content); if(v!=null) animateIn(v); }
+
+    private ScrollView wrap(LinearLayout inner){ ScrollView s=new ScrollView(this); s.setFillViewport(true); s.addView(inner); return s; }
+    private LinearLayout col(){ LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); return l; }
+    private LinearLayout row(){ LinearLayout l=new LinearLayout(this); l.setOrientation(LinearLayout.HORIZONTAL); return l; }
+    private TextView tv(String s, int size, int color, boolean bold){ TextView t=new TextView(this); t.setText(s); t.setTextSize(size); t.setTextColor(color); t.setIncludeFontPadding(true); if(bold) t.setTypeface(Typeface.DEFAULT_BOLD); return t; }
+    private Button pillButton(String s, int bg, int fg){ Button b=new Button(this); b.setText(s); b.setTextColor(fg); b.setTextSize(15); b.setAllCaps(false); b.setTypeface(Typeface.DEFAULT_BOLD); b.setBackground(round(bg, dp(18), Color.TRANSPARENT)); pressAnim(b); return b; }
+    private GradientDrawable round(int color, int radius, int stroke){ GradientDrawable g=new GradientDrawable(); g.setColor(color); g.setCornerRadius(radius); if(stroke!=Color.TRANSPARENT) g.setStroke(dp(1), stroke); return g; }
+    private void addTop(LinearLayout p, View v, int top){ addTop(p,v,top,-1,-2); }
+    private void addTop(LinearLayout p, View v, int top, int w, int h){ LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(w,h); lp.setMargins(0,dp(top),0,0); p.addView(v,lp); }
+    private void addGap(LinearLayout p, int w){ Space s=new Space(this); p.addView(s,new LinearLayout.LayoutParams(dp(w),1)); }
+    private int dp(int v){ return (int)(v*getResources().getDisplayMetrics().density+0.5f); }
+    private void toast(String s){ Toast.makeText(this,s,Toast.LENGTH_SHORT).show(); }
+    private void animateIn(View v){ v.setAlpha(0f); v.setTranslationY(dp(12)); v.animate().alpha(1f).translationY(0).setDuration(220).setInterpolator(new DecelerateInterpolator()).start(); }
+    private void pressAnim(final View v){ v.setOnTouchListener(new View.OnTouchListener(){ public boolean onTouch(View view, MotionEvent e){ if(e.getAction()==MotionEvent.ACTION_DOWN){ view.animate().scaleX(.97f).scaleY(.97f).setDuration(90).start(); } if(e.getAction()==MotionEvent.ACTION_UP || e.getAction()==MotionEvent.ACTION_CANCEL){ view.animate().scaleX(1f).scaleY(1f).setDuration(120).start(); } return false; }}); }
+    private void setAuroraColors(){ purple=Color.rgb(78,54,137); violet=Color.rgb(126,103,216); text=Color.rgb(60,43,96); sub=Color.rgb(104,88,130); glass=Color.argb(205,255,246,255); glass2=Color.argb(175,255,255,255); outline=Color.argb(95,255,255,255); String theme=prefs.getString("theme","Aurora"); if(theme.equals("AMOLED")){ text=Color.WHITE; sub=Color.rgb(190,185,205); glass=Color.argb(220,30,26,38); glass2=Color.argb(205,38,34,48); outline=Color.argb(70,255,255,255); }}
+    private String greeting(){ int h = Integer.parseInt(new SimpleDateFormat("HH", Locale.getDefault()).format(new Date())); if(h<12) return "Bom dia!"; if(h<18) return "Boa tarde!"; return "Boa noite!"; }
+}
