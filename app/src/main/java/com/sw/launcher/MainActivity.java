@@ -42,7 +42,7 @@ import java.util.Locale;
 import java.util.Set;
 
 public class MainActivity extends Activity {
-    private static final String PREF = "sw_launcher_v06_professional";
+    private static final String PREF = "sw_launcher_v07_android16_expressive";
     private static final String SCREEN_HOME = "home";
     private static final String SCREEN_DRAWER = "drawer";
     private static final String SCREEN_SETTINGS = "settings";
@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         pm = getPackageManager();
         store = getSharedPreferences(PREF, MODE_PRIVATE);
-        style = store.getInt("style", 1);
+        style = store.getInt("style", 0);
         columns = store.getInt("columns", 4);
         iconSize = store.getInt("iconSize", 56);
         showLabels = store.getBoolean("showLabels", true);
@@ -96,17 +96,17 @@ public class MainActivity extends Activity {
 
     private Palette palette() {
         switch (style) {
-            case 0: // Neutral
-                return new Palette(hex("#F8F6F2"), hex("#EFEAE2"), hex("#FFFDF8"), hex("#E8E2D7"), hex("#615D55"), Color.WHITE, hex("#1C1B19"), hex("#6F6960"), hex("#D4CCC0"), true);
-            case 2: // Bright
-                return new Palette(hex("#F6FAFF"), hex("#E2F1FF"), hex("#FFFFFF"), hex("#D5EAFF"), hex("#1167D8"), Color.WHITE, hex("#0D1B2A"), hex("#53677D"), hex("#C2DDF7"), true);
-            case 3: // Bold
-                return new Palette(hex("#170A25"), hex("#08050E"), hex("#24162F"), hex("#352144"), hex("#D7B8FF"), hex("#24162F"), hex("#FFF7FF"), hex("#CDBED8"), hex("#675375"), false);
-            case 4: // AMOLED
-                return new Palette(Color.BLACK, hex("#030303"), hex("#101010"), hex("#1C1C1C"), hex("#EAE6FF"), hex("#101010"), hex("#F5F5F5"), hex("#A9A9A9"), hex("#343434"), false);
-            case 1: // Soft
+            case 1: // Android Soft
+                return new Palette(hex("#FFF8FB"), hex("#F5ECF4"), hex("#FFFBFE"), hex("#F0DEE9"), hex("#8A4D72"), Color.WHITE, hex("#211A20"), hex("#705B67"), hex("#E2CDD8"), true);
+            case 2: // Android Bright
+                return new Palette(hex("#F7FBFF"), hex("#E8F3FF"), hex("#FFFFFF"), hex("#DDEEFF"), hex("#006DCC"), Color.WHITE, hex("#0D1B2A"), hex("#536779"), hex("#C7DDF2"), true);
+            case 3: // Android Bold
+                return new Palette(hex("#15121C"), hex("#08070A"), hex("#211C2B"), hex("#342B46"), hex("#D0BCFF"), hex("#211C2B"), hex("#FFF7FF"), hex("#CAC1D7"), hex("#5E536B"), false);
+            case 4: // AMOLED Ink
+                return new Palette(Color.BLACK, hex("#020202"), hex("#0D0D0D"), hex("#1A1A1A"), hex("#BFD6FF"), hex("#07111E"), hex("#F7F7F7"), hex("#B4B4B4"), hex("#303030"), false);
+            case 0: // Pixel Porcelain
             default:
-                return new Palette(hex("#FFF7FB"), hex("#F0E7F8"), hex("#FFF9FF"), hex("#EADDFF"), hex("#73548D"), Color.WHITE, hex("#211928"), hex("#6D6177"), hex("#D8CBE2"), true);
+                return new Palette(hex("#FAF8F3"), hex("#EEF3EE"), hex("#FFFDF8"), hex("#E4E9E3"), hex("#406651"), Color.WHITE, hex("#181D19"), hex("#5D665E"), hex("#D3DAD1"), true);
         }
     }
 
@@ -250,9 +250,48 @@ public class MainActivity extends Activity {
         background();
         LinearLayout main = new LinearLayout(this);
         main.setOrientation(LinearLayout.VERTICAL);
-        main.setPadding(dp(20), dp(16), dp(20), dp(10));
+        main.setPadding(dp(18), dp(14), dp(18), dp(10));
+        main.setAlpha(0f);
+        main.setTranslationY(dp(10));
         root.addView(main, new FrameLayout.LayoutParams(-1, -1));
+        main.animate().alpha(1f).translationY(0).setDuration(190).start();
         return main;
+    }
+
+    private TextView pill(String text, int bg, int color) {
+        Palette p = palette();
+        TextView v = tv(text, 15, color, Typeface.BOLD);
+        v.setGravity(Gravity.CENTER);
+        v.setPadding(dp(18), 0, dp(18), 0);
+        v.setBackground(roundStroke(bg, 999, p.outline));
+        return v;
+    }
+
+    private void microCard(LinearLayout parent, String title, String sub, String mark, Runnable action) {
+        Palette p = palette();
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(14), dp(16), dp(14));
+        card.setBackground(roundStroke(alpha(p.surface, p.light ? 232 : 218), 30, p.outline));
+        TextView m = tv(mark, 22, p.primary, Typeface.BOLD);
+        card.addView(m);
+        card.addView(tv(title, 15, p.text, Typeface.BOLD));
+        TextView small = tv(sub, 12, p.sub, 0);
+        small.setMaxLines(1);
+        card.addView(small);
+        card.setOnClickListener(v -> action.run());
+        card.setOnLongClickListener(v -> { action.run(); return true; });
+        parent.addView(card, new LinearLayout.LayoutParams(0, -2, 1));
+    }
+
+    private void sectionTitle(LinearLayout parent, String text) {
+        Palette p = palette();
+        TextView t = tv(text, 13, p.sub, Typeface.BOLD);
+        t.setText(text.toUpperCase(Locale.ROOT));
+        t.setLetterSpacing(0.06f);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.setMargins(dp(4), dp(16), 0, dp(6));
+        parent.addView(t, lp);
     }
 
     private void showHome() {
@@ -263,36 +302,76 @@ public class MainActivity extends Activity {
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout title = new LinearLayout(this);
-        title.setOrientation(LinearLayout.VERTICAL);
-        title.addView(tv("SW Launcher", 20, p.text, Typeface.BOLD));
-        title.addView(tv("Área de trabalho", 12, p.sub, 0));
-        top.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout brand = new LinearLayout(this);
+        brand.setOrientation(LinearLayout.VERTICAL);
+        brand.addView(tv("SW", 13, p.primary, Typeface.BOLD));
+        brand.addView(tv("Launcher", 24, p.text, Typeface.BOLD));
+        top.addView(brand, new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView edit = chip("Editar", false);
-        edit.setOnClickListener(v -> showHomeEditSheet());
-        top.addView(edit, new LinearLayout.LayoutParams(dp(98), dp(50)));
+        TextView drawerQuick = pill("Apps", alpha(p.surface, p.light ? 238 : 220), p.text);
+        drawerQuick.setOnClickListener(v -> showDrawer());
+        top.addView(drawerQuick, new LinearLayout.LayoutParams(dp(86), dp(48)));
         Space gap = new Space(this);
-        top.addView(gap, new LinearLayout.LayoutParams(dp(10), 1));
+        top.addView(gap, new LinearLayout.LayoutParams(dp(8), 1));
         TextView gear = iconButton("⚙");
+        gear.setTextSize(19);
         gear.setOnClickListener(v -> showSettings());
-        top.addView(gear, new LinearLayout.LayoutParams(dp(54), dp(50)));
+        top.addView(gear, new LinearLayout.LayoutParams(dp(50), dp(48)));
         main.addView(top);
 
-        LinearLayout glance = new LinearLayout(this);
-        glance.setOrientation(LinearLayout.VERTICAL);
-        glance.setPadding(dp(22), dp(18), dp(22), dp(16));
-        glance.setBackground(roundStroke(alpha(p.surface, p.light ? 235 : 220), 32, p.outline));
-        TextView time = tv(new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date()), 44, p.text, Typeface.BOLD);
-        glance.addView(time);
-        glance.addView(tv(new SimpleDateFormat("EEE, dd MMM", new Locale("pt", "BR")).format(new Date()), 20, p.text, Typeface.BOLD));
-        glance.addView(tv("Toque para abrir • segure para editar", 13, p.sub, 0));
-        glance.setOnLongClickListener(v -> { showHomeEditSheet(); return true; });
-        LinearLayout.LayoutParams gp = new LinearLayout.LayoutParams(-1, -2);
-        gp.setMargins(0, dp(18), 0, dp(16));
-        main.addView(glance, gp);
+        LinearLayout hero = new LinearLayout(this);
+        hero.setOrientation(LinearLayout.VERTICAL);
+        hero.setPadding(dp(22), dp(20), dp(22), dp(18));
+        hero.setBackground(roundStroke(alpha(p.surface, p.light ? 245 : 222), 38, p.outline));
+        TextView time = tv(new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date()), 54, p.text, Typeface.BOLD);
+        time.setIncludeFontPadding(false);
+        hero.addView(time);
+        hero.addView(tv(new SimpleDateFormat("EEEE, dd MMM", new Locale("pt", "BR")).format(new Date()), 17, p.sub, Typeface.BOLD));
+        TextView hint = tv("Seu espaço está pronto. Pesquise, organize e personalize.", 13, p.sub, 0);
+        LinearLayout.LayoutParams hp0 = new LinearLayout.LayoutParams(-1, -2);
+        hp0.setMargins(0, dp(8), 0, 0);
+        hero.addView(hint, hp0);
+        hero.setOnLongClickListener(v -> { showHomeEditSheet(); return true; });
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(-1, -2);
+        hp.setMargins(0, dp(16), 0, dp(12));
+        main.addView(hero, hp);
+
+        TextView searchPill = tv("⌕  Pesquisar apps, atalhos e ajustes", 16, p.text, Typeface.BOLD);
+        searchPill.setGravity(Gravity.CENTER_VERTICAL);
+        searchPill.setPadding(dp(22), 0, dp(22), 0);
+        searchPill.setBackground(roundStroke(alpha(p.surfaceHigh, p.light ? 238 : 220), 999, p.outline));
+        searchPill.setOnClickListener(v -> showDrawer());
+        main.addView(searchPill, new LinearLayout.LayoutParams(-1, dp(58)));
+
+        LinearLayout cardsRow = new LinearLayout(this);
+        cardsRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams crp = new LinearLayout.LayoutParams(-1, -2);
+        crp.setMargins(0, dp(12), 0, dp(8));
+        main.addView(cardsRow, crp);
+        microCard(cardsRow, "Gaveta", allApps.size() + " apps", "A", () -> showDrawer());
+        Space sp1 = new Space(this); cardsRow.addView(sp1, new LinearLayout.LayoutParams(dp(10), 1));
+        microCard(cardsRow, "Aparência", "cores e layout", "◇", () -> showStyleSheet());
+
+        LinearLayout cardsRow2 = new LinearLayout(this);
+        cardsRow2.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams crp2 = new LinearLayout.LayoutParams(-1, -2);
+        crp2.setMargins(0, 0, 0, dp(10));
+        main.addView(cardsRow2, crp2);
+        microCard(cardsRow2, "Editar", "área de trabalho", "+", () -> showHomeEditSheet());
+        Space sp2 = new Space(this); cardsRow2.addView(sp2, new LinearLayout.LayoutParams(dp(10), 1));
+        microCard(cardsRow2, "Ajustes", "launcher", "≡", () -> showSettings());
+
+        LinearLayout rowTitle = new LinearLayout(this);
+        rowTitle.setGravity(Gravity.CENTER_VERTICAL);
+        rowTitle.addView(tv("Área de trabalho", 18, p.text, Typeface.BOLD), new LinearLayout.LayoutParams(0, -2, 1));
+        TextView edit = tv("Editar", 13, p.primary, Typeface.BOLD);
+        edit.setGravity(Gravity.CENTER);
+        edit.setOnClickListener(v -> showHomeEditSheet());
+        rowTitle.addView(edit, new LinearLayout.LayoutParams(dp(78), dp(38)));
+        main.addView(rowTitle);
 
         ScrollView area = new ScrollView(this);
+        area.setOverScrollMode(View.OVER_SCROLL_NEVER);
         LinearLayout workspace = new LinearLayout(this);
         workspace.setOrientation(LinearLayout.VERTICAL);
         area.addView(workspace);
@@ -329,11 +408,15 @@ public class MainActivity extends Activity {
 
     private void addDock(LinearLayout main) {
         Palette p = palette();
+        LinearLayout dockWrap = new LinearLayout(this);
+        dockWrap.setOrientation(LinearLayout.VERTICAL);
+        dockWrap.setPadding(dp(8), dp(6), dp(8), dp(6));
+        dockWrap.setBackground(roundStroke(alpha(p.surface, p.light ? 245 : 226), 999, p.outline));
+
         LinearLayout dock = new LinearLayout(this);
         dock.setOrientation(LinearLayout.HORIZONTAL);
         dock.setGravity(Gravity.CENTER);
-        dock.setPadding(dp(10), dp(8), dp(10), dp(8));
-        dock.setBackground(roundStroke(alpha(p.surface, p.light ? 240 : 228), 34, p.outline));
+        dockWrap.addView(dock, new LinearLayout.LayoutParams(-1, -1));
 
         List<String> dockKeys = split(store.getString("dock", ""));
         for (int i = 0; i < 2; i++) {
@@ -343,11 +426,14 @@ public class MainActivity extends Activity {
             } else dock.addView(spacer(), new LinearLayout.LayoutParams(0, -1, 1));
         }
 
-        TextView drawer = tv("⌘", 28, p.onPrimary, Typeface.BOLD);
+        TextView drawer = tv("⌕", 30, p.onPrimary, Typeface.BOLD);
         drawer.setGravity(Gravity.CENTER);
-        drawer.setBackground(round(p.primary, 28));
+        drawer.setBackground(round(p.primary, 999));
         drawer.setOnClickListener(v -> showDrawer());
-        dock.addView(drawer, new LinearLayout.LayoutParams(0, dp(62), 1));
+        drawer.setOnLongClickListener(v -> { showSettings(); return true; });
+        LinearLayout.LayoutParams center = new LinearLayout.LayoutParams(0, dp(62), 1);
+        center.setMargins(dp(6), 0, dp(6), 0);
+        dock.addView(drawer, center);
 
         for (int i = 2; i < 4; i++) {
             if (i < dockKeys.size()) {
@@ -356,9 +442,9 @@ public class MainActivity extends Activity {
             } else dock.addView(spacer(), new LinearLayout.LayoutParams(0, -1, 1));
         }
 
-        LinearLayout.LayoutParams dpv = new LinearLayout.LayoutParams(-1, dp(82));
-        dpv.setMargins(0, dp(10), 0, 0);
-        main.addView(dock, dpv);
+        LinearLayout.LayoutParams dpv = new LinearLayout.LayoutParams(-1, dp(78));
+        dpv.setMargins(0, dp(8), 0, 0);
+        main.addView(dockWrap, dpv);
     }
 
     private View spacer() { return new Space(this); }
@@ -390,11 +476,18 @@ public class MainActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER);
-        box.setPadding(dp(4), dp(6), dp(4), dp(6));
+        box.setPadding(dp(3), dp(6), dp(3), dp(6));
+
+        FrameLayout iconPlate = new FrameLayout(this);
+        iconPlate.setBackground(round(alpha(p.surfaceHigh, p.light ? 170 : 120), dock ? 22 : 24));
         ImageView icon = new ImageView(this);
         icon.setImageDrawable(e.icon);
-        int size = dp(dock ? Math.max(46, iconSize - 8) : iconSize);
-        box.addView(icon, new LinearLayout.LayoutParams(size, size));
+        int size = dp(dock ? Math.max(42, iconSize - 12) : iconSize);
+        FrameLayout.LayoutParams ilp = new FrameLayout.LayoutParams(size, size, Gravity.CENTER);
+        iconPlate.addView(icon, ilp);
+        int plate = dp(dock ? Math.max(50, iconSize - 2) : iconSize + 14);
+        box.addView(iconPlate, new LinearLayout.LayoutParams(plate, plate));
+
         if (showLabels && !dock) {
             TextView label = tv(label(e), 12, p.text, 0);
             label.setGravity(Gravity.CENTER);
@@ -403,7 +496,12 @@ public class MainActivity extends Activity {
             lp.setMargins(0, dp(5), 0, 0);
             box.addView(label, lp);
         }
-        box.setOnClickListener(v -> openApp(e));
+        box.setOnClickListener(v -> {
+            box.animate().scaleX(0.94f).scaleY(0.94f).setDuration(65).withEndAction(() -> {
+                box.animate().scaleX(1f).scaleY(1f).setDuration(90).start();
+                openApp(e);
+            }).start();
+        });
         box.setOnLongClickListener(v -> { showAppSheet(e); return true; });
         return box;
     }
@@ -579,8 +677,8 @@ public class MainActivity extends Activity {
         LinearLayout title = new LinearLayout(this);
         title.setOrientation(LinearLayout.VERTICAL);
         title.setPadding(dp(12), 0, 0, 0);
-        title.addView(tv("Configurações", 28, p.text, Typeface.BOLD));
-        title.addView(tv("Home, gaveta, dock, aparência e privacidade", 13, p.sub, 0));
+        title.addView(tv("Configurações", 30, p.text, Typeface.BOLD));
+        title.addView(tv("Personalização, layout, dock e integração", 13, p.sub, 0));
         header.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
         main.addView(header);
 
@@ -600,20 +698,37 @@ public class MainActivity extends Activity {
         settingRow(list, "Permissão de uso real", "Ativar estatísticas reais de uso do Android", () -> startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)));
         settingRow(list, "Recarregar apps", allApps.size() + " apps encontrados", () -> { loadApps(); Toast.makeText(this, "Apps recarregados", Toast.LENGTH_SHORT).show(); showSettings(); });
         settingRow(list, "Resetar layout", "Limpa área, dock, nomes e ocultos", () -> resetLayout());
-        settingRow(list, "Sobre", "SW Launcher v0.6 Professional Foundation", () -> Toast.makeText(this, "SW Launcher v0.6 Professional Foundation", Toast.LENGTH_LONG).show());
+        settingRow(list, "Sobre", "SW Launcher v0.7 Android 16 Expressive UI", () -> Toast.makeText(this, "SW Launcher v0.7 Android 16 Expressive UI", Toast.LENGTH_LONG).show());
     }
 
     private void settingRow(LinearLayout parent, String title, String sub, Runnable action) {
         Palette p = palette();
         LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(20), dp(16), dp(20), dp(16));
-        card.setBackground(roundStroke(alpha(p.surface, 235), 28, p.outline));
-        card.addView(tv(title, 18, p.text, Typeface.BOLD));
-        card.addView(tv(sub, 13, p.sub, 0));
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        card.setPadding(dp(16), dp(14), dp(16), dp(14));
+        card.setBackground(roundStroke(alpha(p.surface, p.light ? 238 : 220), 30, p.outline));
+
+        TextView badge = tv(title.substring(0, 1), 18, p.onPrimary, Typeface.BOLD);
+        badge.setGravity(Gravity.CENTER);
+        badge.setBackground(round(p.primary, 999));
+        card.addView(badge, new LinearLayout.LayoutParams(dp(46), dp(46)));
+
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        texts.setPadding(dp(14), 0, dp(10), 0);
+        texts.addView(tv(title, 17, p.text, Typeface.BOLD));
+        TextView subText = tv(sub, 13, p.sub, 0);
+        subText.setMaxLines(2);
+        texts.addView(subText);
+        card.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
+
+        TextView arrow = tv("›", 28, p.sub, Typeface.BOLD);
+        arrow.setGravity(Gravity.CENTER);
+        card.addView(arrow, new LinearLayout.LayoutParams(dp(26), -1));
         card.setOnClickListener(v -> action.run());
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.setMargins(0, dp(14), 0, 0);
+        lp.setMargins(0, dp(12), 0, 0);
         parent.addView(card, lp);
     }
 
@@ -638,9 +753,9 @@ public class MainActivity extends Activity {
         LinearLayout box = sheetContent();
         Palette p = palette();
         box.addView(tv("Aparência", 26, p.text, Typeface.BOLD));
-        box.addView(tv("Paletas inspiradas em Material 3 Expressive.", 14, p.sub, 0));
+        box.addView(tv("Cores tonais inspiradas no visual do Android 16.", 14, p.sub, 0));
         divider(box);
-        String[] names = {"Neutral", "Soft", "Bright", "Bold", "AMOLED"};
+        String[] names = {"Pixel Porcelain", "Android Soft", "Android Bright", "Android Bold", "AMOLED Ink"};
         for (int i = 0; i < names.length; i++) {
             final int selected = i;
             box.addView(sheetOption((style == i ? "✓ " : "") + names[i], () -> { style = selected; store.edit().putInt("style", selected).apply(); d.dismiss(); refresh(); }));
@@ -822,7 +937,7 @@ public class MainActivity extends Activity {
 
     private void resetLayout() {
         store.edit().clear().apply();
-        style = 1;
+        style = 0;
         columns = 4;
         iconSize = 56;
         showLabels = true;

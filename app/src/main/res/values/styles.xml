@@ -4,8 +4,8 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#73548D</item>
+        <item name="android:colorAccent">#406651</item>
         <item name="android:navigationBarColor">#000000</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>
